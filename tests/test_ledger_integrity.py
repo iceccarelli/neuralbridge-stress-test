@@ -5,17 +5,20 @@ a hostile operator or a corrupted disk looks like.
 """
 import sqlite3
 import threading
-from datetime import datetime, timedelta, timezone
-
-import pytest
+from datetime import UTC, datetime, timedelta
 
 from assurance.core import Actor
 from assurance.evidence import EvidenceLedger
 from assurance.security.art14 import (
-    Art14Register, Awareness, CaseError, Signal, SignalChannel, Track,
+    Art14Register,
+    Awareness,
+    CaseError,
+    Signal,
+    SignalChannel,
+    Track,
 )
 
-UTC = timezone.utc
+UTC = UTC
 ACTOR = Actor("tester", "stress-test")
 T0 = datetime(2026, 9, 19, 6, 30, tzinfo=UTC)
 
@@ -42,7 +45,8 @@ def test_editing_a_payload_in_place_is_detected(tmp_path):
     path, _ = seeded(tmp_path)
     db = sqlite3.connect(path)
     (payload,) = db.execute("SELECT payload FROM chain WHERE seq=2").fetchone()
-    db.execute("UPDATE chain SET payload=? WHERE seq=2", (payload.replace("2026-09-19", "2026-09-29"),))
+    tampered = payload.replace("2026-09-19", "2026-09-29")
+    db.execute("UPDATE chain SET payload=? WHERE seq=2", (tampered,))
     db.commit()
     db.close()
     ok, problems = verified(path)

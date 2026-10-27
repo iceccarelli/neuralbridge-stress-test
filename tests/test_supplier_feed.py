@@ -1,16 +1,19 @@
 """Signed supplier-advisory feed: attacks from someone who controls the file, not the key."""
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from assurance.attest.keys import SigningKey
 from assurance.fleet.advisory import AdvisorySeverity, AffectedArtefact, ComponentAdvisory
 from assurance.supplier.publish import (
-    AdvisoryFeed, SupplierIdentity, publish, verify_feed, withdraw,
+    AdvisoryFeed,
+    SupplierIdentity,
+    publish,
+    verify_feed,
+    withdraw,
 )
 
-NOW = datetime(2026, 9, 12, tzinfo=timezone.utc)
+NOW = datetime(2026, 9, 12, tzinfo=UTC)
 ID = SupplierIdentity("controlco", "ControlCo GmbH", "datasheet p.2 fingerprint")
 
 
@@ -78,8 +81,9 @@ def test_dropping_the_newest_record_is_not_silently_accepted(feed):
     f.path.write_text("\n".join(lines(f)[:2]) + "\n", "utf-8")  # drop the withdrawal
     v = verify_feed(f.read(), key.verifying)
     assert [r.advisory_id for r in v.live] == ["ADV-1", "ADV-2"]  # the withdrawn one stands again
-    said_so = any(w in s.lower() for s in v.checks_skipped for w in ("newest", "truncat", "rolled back", "rollback"))
-    assert (not v.ok) or said_so, "a truncated feed verified ok with no caveat about missing newest records"
+    words = ("newest", "truncat", "rolled back", "rollback")
+    said_so = any(w in s.lower() for s in v.checks_skipped for w in words)
+    assert (not v.ok) or said_so, "truncated feed verified ok, no caveat on newest records"
 
 
 def test_a_pinned_minimum_sequence_rejects_a_rolled_back_feed(feed):

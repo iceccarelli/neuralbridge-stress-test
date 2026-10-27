@@ -8,12 +8,16 @@ Rules asserted (from the product's stated purpose, not its code):
   * the order a supplier lists entries cannot change the answer;
   * an advisory that would match everything is refused at construction.
 """
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from assurance.fleet.advisory import (
-    AdvisoryError, AdvisorySeverity, AffectedArtefact, ComponentAdvisory, MatchBasis, match_item,
+    AdvisoryError,
+    AdvisorySeverity,
+    AffectedArtefact,
+    ComponentAdvisory,
+    MatchBasis,
+    match_item,
 )
 from assurance.machinery.manifest import HashSource, ItemKind, SafetyItem
 
@@ -30,7 +34,7 @@ def item(version="4.0", supplier="ControlCo", name="SafeScan", content_hash=H1,
 def advisory(*affected, fixed_versions=(), fixed_hashes=()):
     return ComponentAdvisory(
         advisory_id="ADV-1", issued_by="ControlCo PSIRT",
-        issued_at=datetime(2026, 9, 1, tzinfo=timezone.utc), title="t", summary="s",
+        issued_at=datetime(2026, 9, 1, tzinfo=UTC), title="t", summary="s",
         severity=AdvisorySeverity.SAFETY_RELEVANT, affected=tuple(affected),
         reference="https://example.invalid/adv-1",
         fixed_versions=tuple(fixed_versions), fixed_hashes=tuple(fixed_hashes),
@@ -116,7 +120,7 @@ def test_blank_fixed_hash_is_refused_not_read_as_remedied():
 def test_an_advisory_without_a_reference_is_refused():
     with pytest.raises(AdvisoryError):
         ComponentAdvisory(
-            advisory_id="X", issued_by="Y", issued_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+            advisory_id="X", issued_by="Y", issued_at=datetime(2026, 9, 1, tzinfo=UTC),
             title="t", summary="s", severity=AdvisorySeverity.INFORMATIONAL,
             affected=(art(versions=("4.0",)),), reference="",
         )

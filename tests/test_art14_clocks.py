@@ -6,18 +6,23 @@ Expected values are written out by hand from:
   Art. 14(2)(c) vuln. final     14 days after a corrective OR mitigating measure
   Art. 14(4)(c) incident final  one calendar month after the 72 h notification
 """
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
-
-from assurance.core import Actor
-from assurance.core.identity import format_utc, parse_utc
+from assurance.core import Actor, ClockError, EvidenceIncompleteError
+from assurance.core.identity import parse_utc
 from assurance.evidence import EvidenceLedger
 from assurance.security.art14 import (
-    Art14Register, Awareness, CaseError, Signal, SignalChannel, Stage, Track,
+    Art14Register,
+    Awareness,
+    CaseError,
+    Signal,
+    SignalChannel,
+    Stage,
+    Track,
 )
 
-UTC = timezone.utc
+UTC = UTC
 ACTOR = Actor("tester", "stress-test")
 
 
@@ -70,7 +75,7 @@ def test_no_final_deadline_is_computed_without_a_measure(tmp_path):
     reg = open_case(tmp_path, Track.VULNERABILITY, utc(2026, 9, 19, 6, 30))
     d = reg.case("C1").deadlines
     assert d.final is None
-    with pytest.raises(Exception):
+    with pytest.raises(ClockError):
         d.require_final()
 
 
@@ -95,7 +100,8 @@ def test_a_filing_after_the_deadline_is_reported_late_and_on_the_deadline_is_on_
     aware = utc(2026, 9, 19, 6, 30)
     reg = open_case(tmp_path, Track.VULNERABILITY, aware)
     reg.record_filing("C1", Stage.EARLY_WARNING, utc(2026, 9, 20, 6, 30), {}, ACTOR)
-    reg.record_filing("C1", Stage.NOTIFICATION, utc(2026, 9, 22, 6, 30, ) + timedelta(seconds=1), {}, ACTOR)
+    one_second_over = utc(2026, 9, 22, 6, 30) + timedelta(seconds=1)
+    reg.record_filing("C1", Stage.NOTIFICATION, one_second_over, {}, ACTOR)
     d = reg.case("C1").deadlines
     assert d.early_warning.status == "filed_on_time"   # exactly at 24 h is within 24 h
     assert d.notification.status == "filed_late"       # one second over 72 h is late
@@ -147,6 +153,6 @@ def test_awareness_without_reasoning_is_not_evidence(tmp_path):
     reg = Art14Register(EvidenceLedger(tmp_path / "l.db"))
     got = utc(2026, 9, 19, 6, 30)
     reg.record_signal("C1", Signal(got, SignalChannel.CVD_INBOX, "t", "d"), ACTOR)
-    with pytest.raises(Exception):
+    with pytest.raises(EvidenceIncompleteError):
         reg.record_awareness("C1", Awareness(got, got, got, "t", "   "), Track.INCIDENT, ACTOR)
     assert reg.case("C1").awareness is None
