@@ -77,3 +77,5 @@ Each scenario needs an independent expected result and a product-level integrati
 Use PASS only when the described test ran and assertions passed. Use FAIL when it ran and contradicted an expectation. Use BLOCKED when the environment, access, fixture rights, source, or required dependency is unavailable. Do not treat unrun tests, mocks, green lint, a READY frontend deployment, or a copied source advisory as proof of hosted product correctness.
 
 Raw data access and reuse terms must be reviewed per source. Do not download the large ICS-NAD corpus or the historical RITICS data until the exact dataset version, terms, storage budget and intended test value have been reviewed. Add OSV package queries only where a package identity/version exists; OSV is not a universal industrial firmware applicability oracle.
+
+The GitHub Actions CI workflow runs Ruff, pytest and the offline repository doctor on Python 3.11, 3.12 and 3.13. A green CI run is required before merging; it still does not prove hosted product integration.
