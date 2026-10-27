@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "scenarios": [
+    {
+      "id": "NB-001",
+      "title": "Affected firmware versus corrected firmware",
+      "status": "fixture-ready; product-integration pending",
+      "fixture": "data/fixtures/rockwell_advisories.json",
+      "expected_behavior": [
+        "A vendor-published affected version is not treated as corrected.",
+        "A vendor-published fixed version is not treated as affected by that advisory unless the vendor states otherwise.",
+        "Vendor advisory applicability is not evidence that a particular customer owns or operates the asset."
+      ],
+      "source_ids": ["rockwell_sd1780", "rockwell_sd1796", "nvd_cve_api"]
+    },
+    {
+      "id": "NB-002",
+      "title": "Discontinued hardware with no available fix",
+      "status": "fixture-ready; product-integration pending",
+      "fixture": "data/fixtures/rockwell_advisories.json",
+      "expected_behavior": [
+        "The discontinued device is identified as having no vendor fix available in the cited advisory.",
+        "The system does not invent a corrected version or imply that an upgrade exists.",
+        "Recommended mitigations are not represented as a vendor patch."
+      ],
+      "source_ids": ["rockwell_sd1780"]
+    },
+    {
+      "id": "NB-003",
+      "title": "Source refresh, deduplication and history",
+      "status": "fetcher-ready; product-integration pending",
+      "fixture": "data/raw/ingestion-manifest.json",
+      "expected_behavior": [
+        "Every fetch records source, retrieval time, HTTP status, byte length and SHA-256.",
+        "Refreshing a source does not silently rewrite historical observations.",
+        "An absent EPSS result is represented as unknown or unavailable, not zero.",
+        "A record absent from CISA KEV is not reported as known exploited by KEV."
+      ],
+      "source_ids": ["cisa_kev", "nvd_cve_api", "first_epss"]
+    },
+    {
+      "id": "NB-005",
+      "title": "Tampered, duplicated and out-of-order evidence records",
+      "status": "synthetic-fixture-ready; product-integration pending",
+      "fixture": "data/fixtures/evidence_events.json",
+      "expected_behavior": [
+        "Tampered content fails integrity verification.",
+        "Duplicate event delivery does not create a second logical event where idempotency is required.",
+        "Out-of-order or missing sequence data is not silently accepted as a complete history.",
+        "The original event objects remain unchanged by test processing."
+      ],
+      "source_ids": []
+    }
+  ]
+}

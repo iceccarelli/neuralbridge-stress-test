@@ -1,0 +1,93 @@
+{
+  "schema_version": "1.0",
+  "policy": {
+    "raw_payloads_are_git_ignored": true,
+    "require_provenance": true,
+    "require_terms_review_before_redistribution": true,
+    "never_infer_asset_ownership_from_vendor_advisory": true
+  },
+  "sources": [
+    {
+      "id": "rockwell_sd1780",
+      "publisher": "Rockwell Automation",
+      "kind": "vendor_security_advisory",
+      "url": "https://www.rockwellautomation.com/en-us/trust-center/security-advisories/advisory.SD1780.html",
+      "acquisition": "manually reviewed minimized fact extraction",
+      "reuse_status": "link_and_cite; verify terms before redistributing any substantial content",
+      "initially_loaded": true
+    },
+    {
+      "id": "rockwell_sd1796",
+      "publisher": "Rockwell Automation",
+      "kind": "vendor_security_advisory",
+      "url": "https://www.rockwellautomation.com/en-us/trust-center/security-advisories/advisory.SD1796.html",
+      "acquisition": "manually reviewed minimized fact extraction",
+      "reuse_status": "link_and_cite; verify terms before redistributing any substantial content",
+      "initially_loaded": true
+    },
+    {
+      "id": "cisa_kev",
+      "publisher": "Cybersecurity and Infrastructure Security Agency",
+      "kind": "official_json_catalog",
+      "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+      "acquisition": "bounded HTTPS GET",
+      "reuse_status": "official catalogue; preserve attribution and review linked terms before redistribution",
+      "initially_loaded": true
+    },
+    {
+      "id": "nvd_cve_api",
+      "publisher": "National Vulnerability Database / NIST",
+      "kind": "focused_vulnerability_api",
+      "url": "https://services.nvd.nist.gov/rest/json/cves/2.0",
+      "acquisition": "one focused request per CVE in the fixture",
+      "reuse_status": "review current NVD terms and referenced third-party material; cache responses with retrieval time",
+      "initially_loaded": true
+    },
+    {
+      "id": "first_epss",
+      "publisher": "FIRST.org",
+      "kind": "focused_exploit_probability_api",
+      "url": "https://api.first.org/data/v1/epss",
+      "acquisition": "one small batched lookup for fixture CVEs",
+      "reuse_status": "preserve source and score date; treat values as time-sensitive",
+      "initially_loaded": true
+    },
+    {
+      "id": "osv",
+      "publisher": "Open Source Vulnerabilities",
+      "kind": "package_vulnerability_api",
+      "url": "https://api.osv.dev/v1/query",
+      "acquisition": "deferred until a package ecosystem, package name and version are known",
+      "reuse_status": "review record-level source and licence metadata",
+      "initially_loaded": false
+    },
+    {
+      "id": "ritics_historical",
+      "publisher": "University of Birmingham RITICS",
+      "kind": "historical_ics_cve_cpe_dataset",
+      "url": "https://www.birmingham.ac.uk/",
+      "acquisition": "deferred; confirm exact dataset landing page, release, licence and attribution first",
+      "reuse_status": "reported CC BY 4.0 in research notes; verify the exact dataset terms before use",
+      "initially_loaded": false
+    },
+    {
+      "id": "ics_nad",
+      "publisher": "ICS-NAD research dataset",
+      "kind": "industrial_network_traffic_corpus",
+      "url": "",
+      "acquisition": "deferred; do not bulk-download during bootstrap",
+      "reuse_status": "confirm exact terms, redistribution rights, storage needs and safety handling first",
+      "initially_loaded": false,
+      "reason_deferred": "very large corpus; not needed for the first firmware-applicability and evidence-integrity scenarios"
+    },
+    {
+      "id": "eu_safety_gate",
+      "publisher": "European Commission Safety Gate",
+      "kind": "product_safety_alert_data",
+      "url": "https://ec.europa.eu/safety-gate-alerts/",
+      "acquisition": "deferred until a product-safety use case is defined",
+      "reuse_status": "verify current data access and reuse terms before ingestion",
+      "initially_loaded": false
+    }
+  ]
+}
