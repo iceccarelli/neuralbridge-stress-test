@@ -65,7 +65,7 @@
       "id": "ritics_historical",
       "publisher": "University of Birmingham RITICS",
       "kind": "historical_ics_cve_cpe_dataset",
-      "url": "https://www.birmingham.ac.uk/",
+      "url": "",
       "acquisition": "deferred; confirm exact dataset landing page, release, licence and attribution first",
       "reuse_status": "reported CC BY 4.0 in research notes; verify the exact dataset terms before use",
       "initially_loaded": false
