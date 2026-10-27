@@ -7,32 +7,15 @@ import json
 import os
 import sys
 import urllib.error
-import urllib.parse
 import urllib.request
+from pathlib import Path
 
-PRODUCTION_HOSTS = {
-    "neuralbridge.io",
-    "www.neuralbridge.io",
-    "assurance-register.fly.dev",
-    "neuralbridge.vercel.app",
-}
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from neuralbridge_stress.staging_probe import validate_base_url  # noqa: E402
+
 MAX_BODY_BYTES = 1024 * 1024
-
-
-def validate_base_url(value: str) -> str:
-    url = value.strip().rstrip("/")
-    parsed = urllib.parse.urlparse(url)
-    host = (parsed.hostname or "").lower()
-    if parsed.scheme not in {"https", "http"} or not host:
-        raise ValueError("Set a valid http(s) staging base URL.")
-    if parsed.username or parsed.password or parsed.query or parsed.fragment:
-        raise ValueError("Credentials, query strings and fragments are not permitted in the base URL.")
-    if host in PRODUCTION_HOSTS or host.endswith(".neuralbridge.io"):
-        raise ValueError(f"Refusing known production host: {host}")
-    is_loopback = host in {"localhost", "127.0.0.1", "::1"}
-    if parsed.scheme != "https" and not is_loopback:
-        raise ValueError("Non-loopback staging hosts must use HTTPS.")
-    return url
 
 
 def get_json(base_url: str, path: str) -> tuple[int, object]:
@@ -78,7 +61,9 @@ def main() -> int:
                 ok = ok and payload.get("ok") is True
             print(f"{'PASS' if ok else 'FAIL'} GET /{path}: HTTP {status}")
             if path == "healthz" and isinstance(payload, dict):
-                safe_fields = {key: payload[key] for key in ("ok", "auth_mode", "stores_open") if key in payload}
+                safe_fields = {
+                    key: payload[key] for key in ("ok", "auth_mode", "stores_open") if key in payload
+                }
                 print(f"   health fields: {json.dumps(safe_fields, sort_keys=True)}")
             if path == "v1/plans" and isinstance(payload, dict):
                 print(f"   response fields: {sorted(payload.keys())}")

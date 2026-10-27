@@ -1,6 +1,6 @@
 import pytest
 
-from scripts.probe_staging import validate_base_url
+from neuralbridge_stress.staging_probe import validate_base_url
 
 
 @pytest.mark.parametrize(
