@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Raw and derived source data: keep fixtures and manifests reviewed and intentionally versioned
+data/raw/**
+!data/raw/.gitkeep
+data/derived/**
+!data/derived/.gitkeep
+
+# Editor and OS artifacts
+.DS_Store
+.idea/
+.vscode/
+*.db

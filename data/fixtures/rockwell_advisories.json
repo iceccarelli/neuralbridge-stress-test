@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "fixture_class": "minimized_public_fact_extraction",
+  "reviewed_on": "2026-10-27",
+  "warning": "These records represent vendor-published advisory facts only. They are not evidence that any customer owns or operates the listed device. Confirm current vendor advisories before making a real-world decision.",
+  "records": [
+    {
+      "advisory_id": "SD1780",
+      "source_id": "rockwell_sd1780",
+      "source_url": "https://www.rockwellautomation.com/en-us/trust-center/security-advisories/advisory.SD1780.html",
+      "cve_id": "CVE-2026-9653",
+      "product_family": "ControlLogix communication modules",
+      "affected_products": [
+        {
+          "catalog_number": "1756-EN2",
+          "affected_firmware": "V12.001 and earlier",
+          "corrected_firmware": "V12.002",
+          "availability": "corrected_version_listed"
+        },
+        {
+          "catalog_number": "1756-EN3",
+          "affected_firmware": "V12.001 and earlier",
+          "corrected_firmware": "V12.002",
+          "availability": "corrected_version_listed"
+        },
+        {
+          "catalog_number": "1756-ENBT",
+          "affected_firmware": "V6.006",
+          "corrected_firmware": null,
+          "availability": "discontinued_no_fix_available"
+        }
+      ],
+      "expected_interpretation": "The source identifies affected versions and lists V12.002 as corrected for EN2/EN3. It identifies ENBT V6.006 as discontinued and says a fix is unavailable."
+    },
+    {
+      "advisory_id": "SD1796",
+      "source_id": "rockwell_sd1796",
+      "source_url": "https://www.rockwellautomation.com/en-us/trust-center/security-advisories/advisory.SD1796.html",
+      "cve_ids": ["CVE-2025-12768", "CVE-2026-12661"],
+      "product_family": "FactoryTalk Historian Machine Edition",
+      "affected_products": [
+        {
+          "catalog_number": "1756-HIST2G/C",
+          "series": "C",
+          "affected_firmware": "7.101",
+          "corrected_firmware": "7.102",
+          "availability": "corrected_version_listed"
+        },
+        {
+          "catalog_number": "1756-HIST2G/B",
+          "series": "B",
+          "affected_firmware": "5.202",
+          "corrected_firmware": "5.203",
+          "availability": "corrected_version_listed"
+        }
+      ],
+      "expected_interpretation": "The source lists the same affected/corrected version mapping for CVE-2025-12768 and CVE-2026-12661."
+    }
+  ]
+}

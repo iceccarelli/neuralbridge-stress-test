@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "fixture_class": "synthetic",
+  "warning": "Invented test records. They do not represent a real machine, customer, incident, or signed attestation.",
+  "events": [
+    {
+      "event_id": "synthetic-machine-001:seq-0001",
+      "asset_id": "SYNTHETIC-ASSET-001",
+      "sequence": 1,
+      "event_type": "configuration_observed",
+      "payload": {"firmware": "V12.001"},
+      "integrity": "valid_expected"
+    },
+    {
+      "event_id": "synthetic-machine-001:seq-0002",
+      "asset_id": "SYNTHETIC-ASSET-001",
+      "sequence": 2,
+      "event_type": "advisory_applicability_recorded",
+      "payload": {"cve_id": "CVE-2026-9653", "source_advisory": "SD1780"},
+      "integrity": "valid_expected"
+    },
+    {
+      "event_id": "synthetic-machine-001:seq-0003",
+      "asset_id": "SYNTHETIC-ASSET-001",
+      "sequence": 3,
+      "event_type": "verification_decision",
+      "payload": {"decision": "human_review_required"},
+      "integrity": "valid_expected"
+    }
+  ],
+  "mutation_cases": [
+    {"case_id": "NB005-TAMPER", "mutation": "change payload without recomputing recorded hash", "expected": "integrity_failure"},
+    {"case_id": "NB005-DUPLICATE", "mutation": "deliver the same event_id twice", "expected": "duplicate_detected_or_idempotently_ignored"},
+    {"case_id": "NB005-ORDER", "mutation": "deliver sequence 3 before sequence 2", "expected": "gap_or_out_of_order_detected"},
+    {"case_id": "NB005-TRUNCATE", "mutation": "remove sequence 2", "expected": "incomplete_history_detected"}
+  ]
+}
