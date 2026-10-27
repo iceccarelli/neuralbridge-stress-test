@@ -101,8 +101,12 @@ def main() -> int:
     try:
         status, body = read_url(cisa_url)
         payload = write_observation(
-            "cisa_kev", "cisa_kev/known_exploited_vulnerabilities.json",
-            cisa_url, status, body, manifest
+            "cisa_kev",
+            "cisa_kev/known_exploited_vulnerabilities.json",
+            cisa_url,
+            status,
+            body,
+            manifest,
         )
         entries = payload.get("vulnerabilities", []) if isinstance(payload, dict) else []
         cisa_ids = {item.get("cveID") for item in entries if isinstance(item, dict)}
@@ -152,7 +156,10 @@ def main() -> int:
     manifest_doc = {
         "schema_version": "1.0",
         "generated_at_utc": utc_now(),
-        "note": "Observations are time-sensitive. This manifest and raw payloads are local and Git-ignored.",
+        "note": (
+            "Observations are time-sensitive. This manifest and raw payloads "
+            "are local and Git-ignored."
+        ),
         "cve_ids_requested": cves,
         "observations": manifest,
         "failures": failures,
@@ -162,9 +169,15 @@ def main() -> int:
     )
     print(f"Manifest: {manifest_path.relative_to(ROOT)}")
     if failures:
-        print(f"BLOCKED/FAILED: {len(failures)} source request(s) failed. See manifest.", file=sys.stderr)
+        print(
+            f"BLOCKED/FAILED: {len(failures)} source request(s) failed. See manifest.",
+            file=sys.stderr,
+        )
         return 1
-    print("PASS: all configured bootstrap source requests completed. Review observations; this is not product validation.")
+    print(
+        "PASS: all bootstrap source requests completed. Review observations; "
+        "this is not product validation."
+    )
     return 0
 
 

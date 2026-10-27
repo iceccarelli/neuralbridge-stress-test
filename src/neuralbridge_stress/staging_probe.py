@@ -20,7 +20,9 @@ def validate_base_url(value: str) -> str:
     if parsed.scheme not in {"https", "http"} or not host:
         raise ValueError("Set a valid http(s) staging base URL.")
     if parsed.username or parsed.password or parsed.query or parsed.fragment:
-        raise ValueError("Credentials, query strings and fragments are not permitted in the base URL.")
+        raise ValueError(
+            "Credentials, query strings and fragments are not permitted in the base URL."
+        )
     if host in PRODUCTION_HOSTS or host.endswith(".neuralbridge.io"):
         raise ValueError(f"Refusing known production host: {host}")
     is_loopback = host in {"localhost", "127.0.0.1", "::1"}

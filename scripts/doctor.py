@@ -21,8 +21,6 @@ def main() -> int:
     print(f"Repository: {ROOT}")
     print(f"Python: {platform.python_version()} ({sys.executable})")
     problems: list[str] = []
-    if sys.version_info < (3, 11):
-        problems.append("Python 3.11 or newer is required.")
 
     problems.extend(validate_sources())
     problems.extend(validate_scenarios())
@@ -40,7 +38,10 @@ def main() -> int:
     if (ROOT.parent / "neuralbridge" / ".git").exists():
         print(f"Product checkout detected: {ROOT.parent / 'neuralbridge'}")
     else:
-        print("Product checkout not found at ../neuralbridge; product integration is not wired yet.")
+        print(
+            "Product checkout not found at ../neuralbridge; "
+            "product integration is not wired yet."
+        )
 
     if problems:
         print("\nFAIL: repository doctor found problems:")

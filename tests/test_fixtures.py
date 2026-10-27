@@ -18,8 +18,14 @@ def test_rockwell_source_fixture_has_required_provenance_and_unique_advisories()
 
 def test_discontinued_module_is_not_given_an_invented_fix():
     fixture = load_json(REPO_ROOT / "data/fixtures/rockwell_advisories.json")
-    sd1780 = next(record for record in fixture["records"] if record["advisory_id"] == "SD1780")
-    enbt = next(item for item in sd1780["affected_products"] if item["catalog_number"] == "1756-ENBT")
+    sd1780 = next(
+        record for record in fixture["records"] if record["advisory_id"] == "SD1780"
+    )
+    enbt = next(
+        item
+        for item in sd1780["affected_products"]
+        if item["catalog_number"] == "1756-ENBT"
+    )
     assert enbt["availability"] == "discontinued_no_fix_available"
     assert enbt["corrected_firmware"] is None
 

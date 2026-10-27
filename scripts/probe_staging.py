@@ -62,7 +62,9 @@ def main() -> int:
             print(f"{'PASS' if ok else 'FAIL'} GET /{path}: HTTP {status}")
             if path == "healthz" and isinstance(payload, dict):
                 safe_fields = {
-                    key: payload[key] for key in ("ok", "auth_mode", "stores_open") if key in payload
+                    key: payload[key]
+                    for key in ("ok", "auth_mode", "stores_open")
+                    if key in payload
                 }
                 print(f"   health fields: {json.dumps(safe_fields, sort_keys=True)}")
             if path == "v1/plans" and isinstance(payload, dict):
@@ -72,7 +74,10 @@ def main() -> int:
         except Exception as exc:
             print(f"FAIL GET /{path}: {exc}", file=sys.stderr)
             failures += 1
-    print("NOTE: read-only smoke probe only; it does not verify checkout, webhooks, tenancy, restore, or product correctness.")
+    print(
+        "NOTE: read-only smoke probe only; it does not verify checkout, webhooks, "
+        "tenancy, restore, or product correctness."
+    )
     return 1 if failures else 0
 
 
