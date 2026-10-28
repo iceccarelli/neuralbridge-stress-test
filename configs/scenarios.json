@@ -4,26 +4,32 @@
     {
       "id": "NB-001",
       "title": "Affected firmware versus corrected firmware",
-      "status": "fixture-ready; product-integration pending",
+      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py, product match_item); BLOCKED at CLI, API, MCP-server and hosted-staging level (no product stack in this harness's CI)",
       "fixture": "data/fixtures/rockwell_advisories.json",
       "expected_behavior": [
         "A vendor-published affected version is not treated as corrected.",
         "A vendor-published fixed version is not treated as affected by that advisory unless the vendor states otherwise.",
         "Vendor advisory applicability is not evidence that a particular customer owns or operates the asset."
       ],
-      "source_ids": ["rockwell_sd1780", "rockwell_sd1796", "nvd_cve_api"]
+      "source_ids": [
+        "rockwell_sd1780",
+        "rockwell_sd1796",
+        "nvd_cve_api"
+      ]
     },
     {
       "id": "NB-002",
       "title": "Discontinued hardware with no available fix",
-      "status": "fixture-ready; product-integration pending",
+      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py, product match_item); BLOCKED at CLI, API, MCP-server and hosted-staging level",
       "fixture": "data/fixtures/rockwell_advisories.json",
       "expected_behavior": [
         "The discontinued device is identified as having no vendor fix available in the cited advisory.",
         "The system does not invent a corrected version or imply that an upgrade exists.",
         "Recommended mitigations are not represented as a vendor patch."
       ],
-      "source_ids": ["rockwell_sd1780"]
+      "source_ids": [
+        "rockwell_sd1780"
+      ]
     },
     {
       "id": "NB-003",
@@ -36,12 +42,16 @@
         "An absent EPSS result is represented as unknown or unavailable, not zero.",
         "A record absent from CISA KEV is not reported as known exploited by KEV."
       ],
-      "source_ids": ["cisa_kev", "nvd_cve_api", "first_epss"]
+      "source_ids": [
+        "cisa_kev",
+        "nvd_cve_api",
+        "first_epss"
+      ]
     },
     {
       "id": "NB-005",
       "title": "Tampered, duplicated and out-of-order evidence records",
-      "status": "synthetic-fixture-ready; product-integration pending",
+      "status": "PASS at library level for tamper, removed middle event, cut tail (signed anchor) and duplicate visibility (tests/test_scenario_nb005.py); BLOCKED for out-of-order delivery (no product interface at the ledger layer) and for API idempotency",
       "fixture": "data/fixtures/evidence_events.json",
       "expected_behavior": [
         "Tampered content fails integrity verification.",
