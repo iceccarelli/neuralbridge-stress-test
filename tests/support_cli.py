@@ -67,3 +67,31 @@ def synthetic_manifest(serial: str, parts: list[tuple[str, str, str]], *,
         "functions": [{"function_id": "SF-1", "description": "synthetic safe stop",
                        "required_performance": "", "verified_by": ["stop_time"]}],
     }
+
+
+NETAUDIT_DIR = str(Path(__file__).parent / "netaudit")
+
+
+def audited(*args: str, cwd: Path, log: Path) -> tuple[Run, list[dict]]:
+    """Run the product CLI with the independent observer loaded; return (run, events seen)."""
+    env = {
+        "NB_NET_LOG": str(log),
+        "PYTHONPATH": os.pathsep.join(
+            p for p in (NETAUDIT_DIR, PRODUCT_SRC, os.environ.get("PYTHONPATH", "")) if p),
+    }
+    result = assurance(*args, cwd=cwd, extra_env=env)
+    events = ([json.loads(x) for x in log.read_text().splitlines() if x.strip()]
+              if log.exists() else [])
+    return result, events
+
+
+def audited_python(code: str, *, cwd: Path, log: Path) -> list[dict]:
+    """Run ``python -c code`` under the same observer (used as a positive control)."""
+    env = dict(os.environ)
+    env["NB_NET_LOG"] = str(log)
+    env["PYTHONPATH"] = os.pathsep.join(p for p in (NETAUDIT_DIR, env.get("PYTHONPATH", "")) if p)
+    subprocess.run([sys.executable, "-c", code], cwd=cwd, env=env, text=True,
+                   capture_output=True, timeout=TIMEOUT_SECONDS, check=False)
+    if not log.exists():
+        return []
+    return [json.loads(x) for x in log.read_text().splitlines() if x.strip()]
