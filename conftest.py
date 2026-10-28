@@ -9,12 +9,13 @@ import sys
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent
-PRODUCT_TESTS = [
-    "tests/test_art14_clocks.py",
-    "tests/test_ledger_integrity.py",
-    "tests/test_advisory_matching.py",
-    "tests/test_supplier_feed.py",
-]
+#: Tests that need no product checkout (source facts, fixtures, probe safety). Every other
+#: test file is a product-level suite, so a new one is reported BLOCKED when the product is
+#: absent instead of failing at import.
+HARNESS_TESTS = {"test_fixtures.py", "test_probe_safety.py", "test_registry.py"}
+PRODUCT_TESTS = sorted(
+    f"tests/{p.name}" for p in (_ROOT / "tests").glob("test_*.py") if p.name not in HARNESS_TESTS
+)
 
 
 def _find_product_src():
