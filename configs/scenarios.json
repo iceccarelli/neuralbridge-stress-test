@@ -4,7 +4,7 @@
     {
       "id": "NB-001",
       "title": "Affected firmware versus corrected firmware",
-      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py, product match_item); BLOCKED at CLI, API, MCP-server and hosted-staging level (no product stack in this harness's CI)",
+      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py, product match_item); PASS at product-CLI level (tests/test_scenario_nb001_nb002_cli.py, local subprocess, real SQLite, run only where a product checkout is present); BLOCKED at API and MCP-server level (no fastapi stack in this harness's environment); UNCHECKED at hosted-staging level",
       "fixture": "data/fixtures/rockwell_advisories.json",
       "expected_behavior": [
         "A vendor-published affected version is not treated as corrected.",
@@ -20,7 +20,7 @@
     {
       "id": "NB-002",
       "title": "Discontinued hardware with no available fix",
-      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py, product match_item); BLOCKED at CLI, API, MCP-server and hosted-staging level",
+      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py, product match_item); PASS at product-CLI level (tests/test_scenario_nb001_nb002_cli.py); BLOCKED at API and MCP-server level; UNCHECKED at hosted-staging level",
       "fixture": "data/fixtures/rockwell_advisories.json",
       "expected_behavior": [
         "The discontinued device is identified as having no vendor fix available in the cited advisory.",
@@ -51,7 +51,7 @@
     {
       "id": "NB-005",
       "title": "Tampered, duplicated and out-of-order evidence records",
-      "status": "PASS at library level for tamper, removed middle event, cut tail (signed anchor) and duplicate visibility (tests/test_scenario_nb005.py); BLOCKED for out-of-order delivery (no product interface at the ledger layer) and for API idempotency",
+      "status": "PASS at library level for tamper, removed middle event, cut tail (signed anchor) and duplicate visibility (tests/test_scenario_nb005.py); BLOCKED for out-of-order delivery (no product interface at the ledger layer) and for API idempotency; product-CLI level (tests/test_attack_attest_cli.py, tests/test_attack_coverage_cli.py): rollback, wrong key and tampered-ledger cases PASS on product main, but the missing/empty attestation-log and deleted-intervention coverage cases FAIL on product main (a135c0e) and PASS only with the unmerged fixes neuralbridge#55 and #57",
       "fixture": "data/fixtures/evidence_events.json",
       "expected_behavior": [
         "Tampered content fails integrity verification.",
