@@ -4,7 +4,7 @@
     {
       "id": "NB-001",
       "title": "Affected firmware versus corrected firmware",
-      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py, product match_item); BLOCKED at CLI, API, MCP-server and hosted-staging level (no product stack in this harness's CI)",
+      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py, product match_item); PASS at product-CLI level (tests/test_scenario_nb001_nb002_cli.py, local subprocess, real SQLite, run only where a product checkout is present); BLOCKED at API and MCP-server level (no fastapi stack in this harness's environment); UNCHECKED at hosted-staging level",
       "fixture": "data/fixtures/rockwell_advisories.json",
       "expected_behavior": [
         "A vendor-published affected version is not treated as corrected.",
@@ -20,7 +20,7 @@
     {
       "id": "NB-002",
       "title": "Discontinued hardware with no available fix",
-      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py, product match_item); BLOCKED at CLI, API, MCP-server and hosted-staging level",
+      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py, product match_item); PASS at product-CLI level (tests/test_scenario_nb001_nb002_cli.py); BLOCKED at API and MCP-server level; UNCHECKED at hosted-staging level",
       "fixture": "data/fixtures/rockwell_advisories.json",
       "expected_behavior": [
         "The discontinued device is identified as having no vendor fix available in the cited advisory.",
