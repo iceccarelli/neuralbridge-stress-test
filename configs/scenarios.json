@@ -51,7 +51,7 @@
     {
       "id": "NB-005",
       "title": "Tampered, duplicated and out-of-order evidence records",
-      "status": "PASS at library level for tamper, removed middle event, cut tail (signed anchor) and duplicate visibility (tests/test_scenario_nb005.py); BLOCKED for out-of-order delivery (no product interface at the ledger layer) and for API idempotency",
+      "status": "PASS at library level for tamper, removed middle event, cut tail (signed anchor) and duplicate visibility (tests/test_scenario_nb005.py); BLOCKED for out-of-order delivery (no product interface at the ledger layer) and for API idempotency; product-CLI level (tests/test_attack_attest_cli.py, tests/test_attack_coverage_cli.py): rollback, wrong key and tampered-ledger cases PASS on product main, but the missing/empty attestation-log and deleted-intervention coverage cases FAIL on product main (a135c0e) and PASS only with the unmerged fixes neuralbridge#55 and #57",
       "fixture": "data/fixtures/evidence_events.json",
       "expected_behavior": [
         "Tampered content fails integrity verification.",
