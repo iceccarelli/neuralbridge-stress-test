@@ -93,3 +93,47 @@ def test_concurrent_awareness_writers_produce_one_awareness_entry(tmp_path):
     assert results.count("ok") == 1
     assert len([e for e in reg.ledger.entries(subject="C1") if "awareness" in e.kind]) == 1
     assert verified(path)[0] is True  # racing writers must not fork or corrupt the chain
+
+
+# ---- the ledger's own verifier must be as strict as the export verifier -----------------
+# The service attests (signs the head of) a ledger only if verify_chain passes, so an edit
+# verify_chain misses becomes an edit the service signs over.
+def _rows(path):
+    db = sqlite3.connect(path)
+    db.row_factory = sqlite3.Row
+    return db
+
+
+def test_rewriting_the_actor_column_is_detected(tmp_path):
+    path, _ = seeded(tmp_path)
+    db = _rows(path)
+    db.execute("UPDATE chain SET actor='mallory' WHERE seq=2")
+    db.commit()
+    db.close()
+    assert verified(path)[0] is False
+
+
+def test_an_unsealed_key_added_to_a_payload_is_detected(tmp_path):
+    import json
+
+    path, _ = seeded(tmp_path)
+    db = _rows(path)
+    row = db.execute("SELECT payload FROM chain WHERE seq=2").fetchone()
+    payload = json.loads(row["payload"])
+    payload["injected"] = "approved by the CISO"
+    db.execute("UPDATE chain SET payload=? WHERE seq=2", (json.dumps(payload),))
+    db.commit()
+    db.close()
+    assert verified(path)[0] is False
+
+
+def test_swapping_a_payload_for_a_different_valid_sealed_evidence_is_detected(tmp_path):
+    """Each payload is internally consistent, but seq 2 now holds seq 1's evidence under
+    its own content_hash: the row names different evidence than it contains."""
+    path, _ = seeded(tmp_path)
+    db = _rows(path)
+    other = db.execute("SELECT payload FROM chain WHERE seq=1").fetchone()["payload"]
+    db.execute("UPDATE chain SET payload=? WHERE seq=2", (other,))
+    db.commit()
+    db.close()
+    assert verified(path)[0] is False
