@@ -156,3 +156,34 @@ def test_awareness_without_reasoning_is_not_evidence(tmp_path):
     with pytest.raises(EvidenceIncompleteError):
         reg.record_awareness("C1", Awareness(got, got, got, "t", "   "), Track.INCIDENT, ACTOR)
     assert reg.case("C1").awareness is None
+
+
+def valid_early_warning():
+    return {
+        "notification_type": "Vulnerability",
+        "title": "Unauthenticated command injection on the service port",
+        "summary": "Reachable on FW 2.1.0-2.4.6; exploitation observed at one integrator site.",
+        "product_name": "SK-4200 Palletising Cell",
+        "product_version": "FW 2.1.0-2.4.6",
+        "member_states_available": ["DE", "AT", "NL"],
+        "awareness_datetime": "2026-09-19T06:30:00Z",
+    }
+
+
+def test_an_empty_filing_cannot_hide_a_late_complete_one(tmp_path):
+    aware = utc(2026, 9, 19, 6, 30)
+    reg = open_case(tmp_path, Track.VULNERABILITY, aware)
+    reg.record_filing("C1", Stage.EARLY_WARNING, aware + timedelta(hours=5), {}, ACTOR)
+    reg.record_filing("C1", Stage.EARLY_WARNING, aware + timedelta(hours=30),
+                      valid_early_warning(), ACTOR)
+    assert reg.case("C1").deadlines.early_warning.status == "filed_late"
+
+
+def test_users_cannot_be_recorded_as_informed_before_awareness_in_either_order(tmp_path):
+    aware = utc(2026, 9, 19, 6, 30)
+    reg = Art14Register(EvidenceLedger(tmp_path / "l.db"))
+    reg.record_signal("C1", Signal(aware, SignalChannel.CVD_INBOX, "t", "d"), ACTOR)
+    reg.record_user_notification("C1", aware - timedelta(days=3), "all", "early", ACTOR)
+    with pytest.raises(CaseError):
+        reg.record_awareness("C1", Awareness(aware, aware, aware, "t", "judged"),
+                             Track.VULNERABILITY, ACTOR)
