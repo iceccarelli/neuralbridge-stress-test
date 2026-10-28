@@ -39,7 +39,19 @@ From a Python 3.11+ environment:
     ruff check .
     pytest -q
 
-In Codespaces, run these commands from the repository root. Never commit .venv, downloaded raw feeds, API keys, customer records, or private assurance evidence.
+## One command, for people and agents
+
+    bash scripts/bootstrap.sh          # once: sibling product checkout, one venv, dependencies
+    python scripts/validate.py --api   # doctor, lint, all tests, and the real API on loopback
+    python scripts/validate.py --json report.json   # same, plus a machine-readable report
+
+`validate.py` prints one row per tier with its status (PASS, FAIL, BLOCKED, UNCHECKED) and
+evidence level, and exits 0 only when every required tier passed (1 on a failure, 3 when a
+required gate did not run). `--api` starts the product's real API on 127.0.0.1 with throwaway
+state and no inherited environment (see `scripts/probe_api.py`); `--sources` fetches the public
+sources with provenance. A fresh Codespace runs `bootstrap.sh` itself (`.devcontainer/`).
+
+In Codespaces, run the commands above from the repository root. Never commit .venv, downloaded raw feeds, API keys, customer records, or private assurance evidence.
 
 ## Retrieve the initial public data
 

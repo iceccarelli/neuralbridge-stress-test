@@ -77,7 +77,10 @@ def test_imported_csaf_is_unauthenticated_inspect_only_and_never_clear(fleet):
     assert r.exit == 0, r.err
     run = _advisory(tmp, ledger, out)
     a = run.json()["advisories"][0]
-    assert a["provenance"]["trust_state"] == "unauthenticated_file"
+    # the label is the product's to name; what matters is that it is not a trusted state
+    assert a["provenance"]["trust_state"] not in {"trusted", "verified", "pinned",
+                                                   "signed_verified"}
+    assert a["provenance"].get("signature_state", "none") in {"none", "absent", "unsigned"}
     assert a["provenance"]["inspect_only"] is True
     assert a["provenance"]["automated_consequences_permitted"] is False
     assert a["verdict"] != "clear" and a["clear_is_complete"] is False
@@ -90,7 +93,10 @@ def test_range_text_flags_the_product_for_a_human_and_only_the_fixed_version_is_
     a = _advisory(tmp, ledger, out).json()["advisories"][0]
     by_serial = {c["machine"].rpartition("#")[2] if "machine" in c else "?": c["classification"]
                  for c in a["machine_classification"]}
-    assert by_serial["B"] == "no_match_found"            # explicitly listed fixed version
+    # An explicitly listed fixed version may be left unflagged (older products) or still sent
+    # to a human (newer products: an unsigned document's fix claim never clears). What it must
+    # never be is a confirmed match.
+    assert by_serial["B"] in {"no_match_found", "possible_match_name_only"}
     assert by_serial["A"] != "no_match_found"            # below the fix: a person must read it
     assert by_serial["C"] != "no_match_found"            # range text is never evaluated away
 

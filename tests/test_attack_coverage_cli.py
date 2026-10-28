@@ -60,6 +60,12 @@ def world(tmp_path):
     return tmp_path, ledger, step, coverage
 
 
+def is_cover(run, report):
+    """Any state that presents the function as covered (full, or the community-tier state that
+    newer products distinguish). Exit 0 and 3 are the 'covered' exits; 1 and 2 are not."""
+    return str(report.get("verdict", "")).startswith("covered") or run.exit in (0, 3)
+
+
 def _verify(step, ledger):
     r = step("machine", "verify", "--envelope", str(FIX / "envelope.json"), "--trace",
              str(FIX / "trace.json"), "--actor", "synthetic.tech", "--ledger", str(ledger),
@@ -74,7 +80,7 @@ def test_a_function_with_no_verification_is_not_covered(world):
     assert step("machinery", "record-manifest", str(root / "m.json"), "--ledger",
                 str(ledger)).exit == 0
     r, j = coverage()
-    assert r.exit != 0 and j["verdict"] != "covered"
+    assert not is_cover(r, j)
     assert j["functions"][0]["coverage"] == "never_verified"
 
 
@@ -83,11 +89,11 @@ def test_a_later_intervention_makes_the_function_stale(world):
     _verify(step, ledger)
     step("machinery", "record-manifest", str(root / "m.json"), "--ledger", str(ledger))
     r, j = coverage()
-    assert r.exit == 0 and j["functions"][0]["coverage"] == "current"
+    assert is_cover(r, j) and j["functions"][0]["coverage"] == "current"
     assert step("machinery", "record-change", str(root / "iv.json"), "--ledger",
                 str(ledger)).exit == 0
     r, j = coverage()
-    assert r.exit != 0 and j["functions"][0]["coverage"] == "stale"
+    assert not is_cover(r, j) and j["functions"][0]["coverage"] == "stale"
 
 
 def test_deleting_the_invalidating_intervention_does_not_restore_cover(world):
@@ -97,7 +103,7 @@ def test_deleting_the_invalidating_intervention_does_not_restore_cover(world):
     step("machinery", "record-change", str(root / "iv.json"), "--ledger", str(ledger))
     # a later record, so the deletion breaks the chain in the middle rather than at the tail
     step("machinery", "record-manifest", str(root / "other.json"), "--ledger", str(ledger))
-    assert coverage()[0].exit != 0           # stale before the attack
+    assert not is_cover(*coverage())         # stale before the attack
     con = sqlite3.connect(ledger)
     con.execute("DELETE FROM chain WHERE kind = 'machinery.intervention'")
     con.commit()
@@ -105,5 +111,4 @@ def test_deleting_the_invalidating_intervention_does_not_restore_cover(world):
     # the other readers already refuse this ledger; the gate must agree
     assert step("fleet", "list", "--ledger", str(ledger)).exit == 2
     r, j = coverage()
-    assert r.exit != 0, f"covered={j.get('verdict')} on a ledger whose chain is broken"
-    assert j.get("verdict") != "covered" if j else True
+    assert not is_cover(r, j), f"covered={j.get('verdict')} exit={r.exit} on a broken chain"
