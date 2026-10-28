@@ -1,0 +1,14 @@
+{
+  "name": "neuralbridge-stress-test",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "customizations": {
+    "codespaces": {
+      "repositories": {
+        "iceccarelli/neuralbridge": { "permissions": { "contents": "read" } }
+      }
+    },
+    "vscode": { "extensions": ["ms-python.python", "charliermarsh.ruff"] }
+  },
+  "postCreateCommand": "bash scripts/bootstrap.sh",
+  "remoteEnv": { "NEURALBRIDGE_SRC": "/workspaces/neuralbridge/src" }
+}
