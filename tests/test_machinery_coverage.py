@@ -3,16 +3,21 @@
 Expected values come from the principle the module states: cover needs EVERY declared check,
 a newer failing run ends older cover, and a function with nothing verified is not covered.
 """
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from assurance.core import Actor
 from assurance.machinery.manifest import (
-    HashSource, ItemKind, MachineIdentity, ManifestSource, SafetyFunction, SafetyItem,
+    HashSource,
+    ItemKind,
+    MachineIdentity,
+    ManifestSource,
+    SafetyFunction,
+    SafetyItem,
     SafetyManifest,
 )
 from assurance.machinery.staleness import Coverage, VerificationRecord, assess_coverage
 
-T0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+T0 = datetime(2026, 1, 1, tzinfo=UTC)
 H = "a" * 64
 
 
