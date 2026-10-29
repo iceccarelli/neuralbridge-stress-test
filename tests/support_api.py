@@ -55,6 +55,15 @@ def call(base: str, method: str, path: str, *, key: str | None = None, body=None
     except urllib.error.HTTPError as exc:
         text = exc.read(4 * 1024 * 1024).decode("utf-8", "replace")
         status = exc.code
+    except (ConnectionError, urllib.error.URLError) as exc:
+        # An early refusal of a body the server will not read can reset the connection while
+        # the client is still sending, before the client can read the 413. That is a refusal
+        # whose status was not observed: status 0, never a success. Tests that accept it must
+        # also prove the server stayed healthy.
+        reason = exc.reason if isinstance(exc, urllib.error.URLError) else exc
+        if not isinstance(reason, ConnectionError):
+            raise
+        return 0, {"_transport": type(reason).__name__}
     try:
         return status, json.loads(text) if text.strip() else {}
     except json.JSONDecodeError:
