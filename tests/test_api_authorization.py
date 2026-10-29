@@ -33,7 +33,12 @@ _OK, _WHY = api_importable()
 pytestmark = pytest.mark.skipif(not _OK, reason=f"BLOCKED: product API not runnable ({_WHY})")
 
 STATIC_PUBLIC = {"GET /", "GET /healthz", "GET /v1/plans"}
-ANONYMOUS_DOORS = STATIC_PUBLIC | {"POST /v1/evidence/verify", "GET /v1/me"}
+#: Public catalogues a later product version added: static (the same answer for any caller) and
+#: carrying no account data. Optional so this oracle still runs against a product without them;
+#: `test_a_public_catalogue_is_the_same_for_every_caller_and_leaks_nothing` is what they must pass.
+OPTIONAL_STATIC_PUBLIC = {"GET /v1/capabilities", "GET /v1/check/services"}
+ANONYMOUS_DOORS = (STATIC_PUBLIC | OPTIONAL_STATIC_PUBLIC
+                    | {"POST /v1/evidence/verify", "GET /v1/me"})
 #: Routes that carry an account's data or authority. Each must be exactly 401 with no key.
 ACCOUNT_DATA = {
     "GET /v1/cases", "GET /v1/change/cases", "GET /v1/fleet/machines",
@@ -79,13 +84,13 @@ def matrix(api, operations):
 
 def test_every_route_was_probed_and_the_declared_lists_name_real_routes(matrix):
     assert len(matrix) >= 70
-    for name in ACCOUNT_DATA | ANONYMOUS_DOORS | HONESTLY_UNAVAILABLE:
+    for name in ACCOUNT_DATA | (ANONYMOUS_DOORS - OPTIONAL_STATIC_PUBLIC) | HONESTLY_UNAVAILABLE:
         assert name in matrix, f"{name} is not in the product's OpenAPI: update this harness"
 
 
 def test_a_bad_key_is_never_accepted(matrix):
     accepted = [n for n, r in matrix.items()
-                if 200 <= r["bad_key"] < 300 and n not in STATIC_PUBLIC]
+                if 200 <= r["bad_key"] < 300 and n not in STATIC_PUBLIC | OPTIONAL_STATIC_PUBLIC]
     assert accepted == []
 
 
@@ -164,3 +169,20 @@ def test_an_empty_signed_feed_is_inspect_only_and_not_trusted(api):
     trust = body["trust"]
     assert trust["policy_satisfied"] is False and trust["inspect_only"] is True
     assert body["advisories"] == []
+
+
+@pytest.mark.parametrize("route", sorted(OPTIONAL_STATIC_PUBLIC))
+def test_a_public_catalogue_is_the_same_for_every_caller_and_leaks_nothing(api, route):
+    """A catalogue anyone may read must not vary with who asks and must carry no secret, key,
+    account identifier or path of the server. Skipped, not passed, if the product lacks it."""
+    method, path = route.split(" ", 1)
+    anonymous = call(api.base, method, path)
+    if anonymous[0] == 404:
+        pytest.skip(f"UNCHECKED: this product has no {route}")
+    assert anonymous[0] == 200, anonymous
+    assert call(api.base, method, path, key="not-a-real-key") == anonymous
+    assert call(api.base, method, path, key=api.operator_key) == anonymous
+    text = json.dumps(anonymous[1])
+    for needle in (api.operator_key, "BEGIN PRIVATE KEY", "sk_live", "whsec_", "/home/", "/tmp/",
+                   "ASSURANCE_API_KEYS", "accounts.db"):
+        assert needle not in text, f"{route} leaks {needle!r}"
