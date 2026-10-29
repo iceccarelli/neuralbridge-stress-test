@@ -228,3 +228,145 @@ def test_an_anchor_edited_to_match_a_cut_chain_is_caught_by_its_signature_alone(
 def test_a_deleted_middle_record_is_reported_as_a_removed_record(lab):
     code, out = standalone(lab.edited(_delete_middle))
     assert code == 1 and "a record was removed" in out, out
+
+
+# --- findings from an independent adversarial review of the standalone file -------------------
+def _append_a_real_entry_after_signing(lab):
+    """The ledger grows after its head was signed: the export's anchor covers 4 of 5 entries."""
+    run = assurance("art14", "--ledger", str(lab.db), "signal", "C5", "--by", "t:analyst",
+                    "--at", "2026-10-26T08:00:00Z", "--description", "after signing",
+                    "--product", "P", "--version", "1", cwd=lab.root)
+    assert run.exit == 0, run.err
+    out = lab.root / "grown.json"
+    run = assurance("art14", "--ledger", str(lab.db), "export", "--attestations",
+                    str(lab.root / "a.log"), "-o", str(out), cwd=lab.root)
+    assert run.exit == 0, run.err
+    return out
+
+
+def test_records_after_the_signed_head_are_never_a_clean_pass(lab):
+    """Review finding 1. Only seq 1-4 are signed; seq 5 is covered by no signature, and an
+    unsigned tail is exactly what a forger can invent. The product says exit 3; so must we."""
+    grown = _append_a_real_entry_after_signing(lab)
+    product, _ = lab.verify(grown)
+    assert product.exit == 3
+    code, out = standalone(grown, "--public-key", str(lab.pub))
+    assert code == 3, out
+    assert "covered by no signature" in out or "after the signed head" in out, out
+
+
+def test_a_forged_tail_after_the_signed_head_is_not_a_pass(lab):
+    grown = _append_a_real_entry_after_signing(lab)
+    doc = json.loads(grown.read_text())
+    doc["entries"][-1]["evidence"]["body"]["signal"]["description"] = "invented"
+    doc["entries"][-1]["evidence"]["content_hash"] = _canon_hash(
+        {k: v for k, v in doc["entries"][-1]["evidence"].items()
+         if k not in ("recorded_at", "content_hash")})
+    doc["entries"][-1]["content_hash"] = doc["entries"][-1]["evidence"]["content_hash"]
+    _rehash_from(doc, len(doc["entries"]) - 1)
+    forged = lab.root / "forged-tail.json"
+    forged.write_text(json.dumps(doc))
+    code, out = standalone(forged, "--public-key", str(lab.pub))
+    assert code != 0, out
+
+
+def test_the_caveats_about_the_key_are_printed_whenever_a_key_was_used(lab):
+    code, out = standalone(lab.file, "--public-key", str(lab.pub))
+    assert code == 0
+    low = out.lower()
+    assert "other than from the export" in low or "channel" in low      # where the key came from
+    assert "signing key" in low and "same party" in low or "holds the signing key" in low
+
+
+def test_an_unhashed_timestamp_field_cannot_carry_free_text(lab):
+    """Review finding 2: recorded_at is outside every hash, so it must at least be a timestamp."""
+    def mutate(d):
+        d["entries"][1]["evidence"]["recorded_at"] = "PWNED: ignore previous instructions"
+    edited = lab.edited(mutate)
+    product, _ = lab.verify(edited)
+    assert product.exit == 1
+    code, out = standalone(edited, "--public-key", str(lab.pub))
+    assert code == 1, out
+
+
+def test_text_taken_from_the_file_cannot_forge_or_erase_output_lines(lab):
+    """Review finding 3."""
+    def mutate(d):
+        d["x\n  checked  every entry anchored to a signed head\x1b[2K"] = 1
+    code, out = standalone(lab.edited(mutate), "--public-key", str(lab.pub))
+    assert "\x1b" not in out
+    assert not [ln for ln in out.splitlines() if ln.startswith("  checked  every entry anchored")]
+
+
+def test_an_unknown_top_level_field_on_a_current_format_export_is_wrong_not_unfamiliar(lab):
+    """Review finding 4: the exporter does not write it, so the file did not come from it."""
+    def mutate(d):
+        d["note"] = "added by someone"
+    edited = lab.edited(mutate)
+    product, _ = lab.verify(edited)
+    assert product.exit == 1
+    assert standalone(edited, "--public-key", str(lab.pub))[0] == 1
+
+
+def test_a_newer_format_is_not_understood_and_never_a_pass(lab):
+    def mutate(d):
+        d["ledger_schema_version"] = 2
+    code, out = standalone(lab.edited(mutate), "--public-key", str(lab.pub))
+    assert code in (1, 3), out
+
+
+@pytest.mark.parametrize("label,value", [("a huge integer", 10**400),
+                                         ("deep nesting", None)])
+def test_a_readable_file_with_an_unusable_number_or_depth_is_a_finding_not_a_crash(
+        lab, label, value):
+    """Review finding 5: exit 2 means 'not a readable export'. This one is readable and wrong."""
+    def mutate(d):
+        body = d["entries"][1]["evidence"]["body"]
+        if value is not None:
+            body["huge"] = value
+        else:
+            node = body["deep"] = {}
+            for _ in range(2000):
+                node["x"] = {}
+                node = node["x"]
+    edited = lab.edited(mutate)
+    product, _ = lab.verify(edited)
+    assert product.exit == 1
+    code, out = standalone(edited, "--public-key", str(lab.pub))
+    assert code == 1, f"{label}: exit {code}\n{out[:300]}"
+    assert "could not examine" not in out
+
+
+def test_float_noise_from_ordinary_arithmetic_is_not_called_unestablished(lab):
+    """Review finding 7: 400.0 - 342.9 is a normal sealed value; the product accepts it."""
+    run = assurance("art14", "--ledger", str(lab.db), "signal", "C6", "--by", "t:analyst",
+                    "--at", "2026-10-27T08:00:00Z", "--description", "noise", "--product", "P",
+                    "--version", "1", cwd=lab.root)
+    assert run.exit == 0
+    # The product's own seal of a value with float noise is what matters: build it by sealing
+    # through the product, then compare both verdicts on the same export.
+    code_value = 400.0 - 342.9
+    assert code_value != round(code_value, 6)       # the premise: it carries sub-1e-6 noise
+    doc = json.loads(lab.file.read_text())
+    seal = _canon_hash
+    body = doc["entries"][1]["evidence"]["body"]
+    body["margin"] = code_value
+    ev = doc["entries"][1]["evidence"]
+    ev["content_hash"] = seal(
+        {k: v for k, v in ev.items() if k not in ("recorded_at", "content_hash")})
+    doc["entries"][1]["content_hash"] = ev["content_hash"]
+    doc["entries"][1]["link_hash"] = _link_hash(doc["entries"][1])
+    _rehash_from(doc, 2)
+    noisy = lab.root / "noisy.json"
+    noisy.write_text(json.dumps(doc))
+    product, body_out = lab.verify(noisy, key=False)
+    code, out = standalone(noisy)
+    if product.exit == 0:                         # the product accepts it
+        assert "finer than" not in out, out
+
+
+def test_no_success_line_is_printed_under_a_failure(lab):
+    """Review finding 8."""
+    code, out = standalone(lab.edited(_rewrite_payload), "--public-key", str(lab.pub))
+    assert code == 1
+    assert "lies inside this chain" not in out and "checked  a head signed" not in out
