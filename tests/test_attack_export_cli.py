@@ -194,3 +194,63 @@ def test_an_unreadable_bundle_is_exit_2_and_never_a_traceback(lab, kind):
     run, body = lab.verify(path)
     assert run.exit in (1, 2) and run.exit != 0
     assert "Traceback" not in run.err and body.get("ok") is not True
+
+
+# --- a forged predecessor link whose own hashes are recomputed (NB-005) ----------------------
+# The attacks above change a field and leave the stored link_hash stale, or move whole entries
+# with their seq numbers. This one is the careful forger: seq stays consecutive, prev_hash is
+# wrong, and every link_hash is recomputed so each entry is self-consistent. Only the
+# prev_hash-to-predecessor comparison can catch it. The hash is rebuilt HERE from the documented
+# definition (SHA-256 of the six link fields as sorted-key, no-whitespace JSON in which every
+# number is first made a float, so seq 1 is hashed as 1.0), not imported.
+
+import hashlib  # noqa: E402
+
+_LINK_FIELDS = ("seq", "at", "kind", "subject", "content_hash", "prev_hash")
+
+
+def _link_hash(entry):
+    body = {k: (float(entry[k]) if k == "seq" else entry[k]) for k in _LINK_FIELDS}
+    return hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _forge_prev_hash_and_rehash(d):
+    entries = d["entries"]
+    entries[2]["prev_hash"] = "f" * 64
+    for i in range(2, len(entries)):
+        if i > 2:
+            entries[i]["prev_hash"] = entries[i - 1]["link_hash"]
+        entries[i]["link_hash"] = _link_hash(entries[i])
+
+
+def test_the_independent_link_hash_matches_the_product_on_an_untouched_bundle(lab):
+    """Oracle control: if this fails the forger below proves nothing."""
+    doc = json.loads(lab.file.read_text())
+    assert [_link_hash(e) for e in doc["entries"]] == [e["link_hash"] for e in doc["entries"]]
+
+
+@pytest.mark.parametrize("key", [True, False])
+def test_a_self_consistent_chain_with_a_forged_predecessor_link_never_passes(lab, key):
+    run, body = lab.verify(lab.edited(_forge_prev_hash_and_rehash), key=key)
+    assert run.exit in (1, 3), f"key={key}: exit {run.exit}, body {body}"
+    assert body.get("completeness") != "anchored"
+
+
+def test_a_forged_predecessor_link_is_caught_on_a_bundle_with_no_attestation_at_all(lab):
+    """No anchor, no key: nothing external vouches for the head, so the predecessor-link
+    comparison is the only thing standing between a rehashed forgery and a clean result. The
+    export's unsigned head record is rewritten to match, as the verifier itself warns it can be."""
+    plain = lab.root / "plain.json"
+    run = assurance("art14", "--ledger", str(lab.db), "export", "-o", str(plain), cwd=lab.root)
+    assert run.exit == 0, run.err
+    doc = json.loads(plain.read_text())
+    doc.pop("anchor", None)
+    assert [_link_hash(e) for e in doc["entries"]] == [e["link_hash"] for e in doc["entries"]]
+    _forge_prev_hash_and_rehash(doc)
+    # The export's own head record is unsigned, so the forger rewrites it to the forged head.
+    doc["attestation"]["head_link_hash"] = doc["entries"][-1]["link_hash"]
+    forged = lab.root / "plain-forged.json"
+    forged.write_text(json.dumps(doc))
+    run, body = lab.verify(forged, key=False)
+    assert run.exit in (1, 3), f"exit {run.exit}, body {body}"

@@ -1,0 +1,63 @@
+{
+  "failures": [],
+  "manifest_generated_at": "2026-10-29T14:22:45.742524+00:00",
+  "payloads_committed": false,
+  "records": [
+    {
+      "boundary_of_proof": "Establishes which CVEs CISA listed as known-exploited at retrieval time. Absence from the catalogue is not proof that a vulnerability does not exist or cannot be exploited.",
+      "bytes": 1818961,
+      "http_status": 200,
+      "publisher": "Cybersecurity and Infrastructure Security Agency",
+      "retrieved_at": "2026-10-29T14:22:32.658974+00:00",
+      "reuse_status": "official catalogue; preserve attribution and review linked terms before redistribution",
+      "sha256": "c72e8b7751209e7575ed777439e3f4e9295ba86b4edf5d52730959d8bf9bfe64",
+      "source_id": "cisa_kev",
+      "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+    },
+    {
+      "boundary_of_proof": "Establishes what NVD published for the requested CVE at retrieval time. Does not show that any customer runs an affected product; NVD records are revised after the fact.",
+      "bytes": 3169,
+      "http_status": 200,
+      "publisher": "National Vulnerability Database / NIST",
+      "retrieved_at": "2026-10-29T14:22:32.978986+00:00",
+      "reuse_status": "review current NVD terms and referenced third-party material; cache responses with retrieval time",
+      "sha256": "672a683cd807db02192cade1c945c79ce98e3e72bf6bf410e539b78f3ca1f7ac",
+      "source_id": "nvd_cve_api",
+      "url": "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2025-12768"
+    },
+    {
+      "boundary_of_proof": "Establishes what NVD published for the requested CVE at retrieval time. Does not show that any customer runs an affected product; NVD records are revised after the fact.",
+      "bytes": 2993,
+      "http_status": 200,
+      "publisher": "National Vulnerability Database / NIST",
+      "retrieved_at": "2026-10-29T14:22:39.244604+00:00",
+      "reuse_status": "review current NVD terms and referenced third-party material; cache responses with retrieval time",
+      "sha256": "f0abc0f4d4755075b01689899ff3bc765df2967019ce4c68352aa3bf62f3098d",
+      "source_id": "nvd_cve_api",
+      "url": "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2026-12661"
+    },
+    {
+      "boundary_of_proof": "Establishes what NVD published for the requested CVE at retrieval time. Does not show that any customer runs an affected product; NVD records are revised after the fact.",
+      "bytes": 3141,
+      "http_status": 200,
+      "publisher": "National Vulnerability Database / NIST",
+      "retrieved_at": "2026-10-29T14:22:45.479898+00:00",
+      "reuse_status": "review current NVD terms and referenced third-party material; cache responses with retrieval time",
+      "sha256": "93d232b4635addada4567112307720a269baf80913d770c0acc4f48536d14549",
+      "source_id": "nvd_cve_api",
+      "url": "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2026-9653"
+    },
+    {
+      "boundary_of_proof": "Establishes the EPSS score FIRST published on the score date for the requested CVEs. EPSS is time-sensitive and is a probability estimate, not evidence of exploitation.",
+      "bytes": 388,
+      "http_status": 200,
+      "publisher": "FIRST.org",
+      "retrieved_at": "2026-10-29T14:22:45.741685+00:00",
+      "reuse_status": "preserve source and score date; treat values as time-sensitive",
+      "sha256": "9de0eac9d1b646b1fe2de9473ab9a081c314126f0e80c26ef3e11e6e820232ea",
+      "source_id": "first_epss",
+      "url": "https://api.first.org/data/v1/epss?cve=CVE-2025-12768%2CCVE-2026-12661%2CCVE-2026-9653"
+    }
+  ],
+  "schema": "neuralbridge-stress.provenance/1"
+}

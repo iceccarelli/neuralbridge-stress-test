@@ -152,7 +152,9 @@ def test_the_anonymous_verifier_demands_json_and_caps_the_body(api):
     assert call(api.base, "POST", "/v1/evidence/verify", raw=b"{}",
                 content_type="text/plain")[0] == 415
     status, _ = call(api.base, "POST", "/v1/evidence/verify", raw=b"[" + b"0," * 3_000_000 + b"0]")
-    assert status in {413, 422}
+    # 0 = the server refused early and reset the connection mid-upload (status not observed).
+    assert status in {0, 413, 422}
+    assert call(api.base, "GET", "/healthz")[0] == 200      # and the refusal did not hurt it
 
 
 def test_an_empty_signed_feed_is_inspect_only_and_not_trusted(api):
