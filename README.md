@@ -53,6 +53,17 @@ sources with provenance. A fresh Codespace runs `bootstrap.sh` itself (`.devcont
 
 In Codespaces, run the commands above from the repository root. Never commit .venv, downloaded raw feeds, API keys, customer records, or private assurance evidence.
 
+## Browser and live-site tiers
+
+Two tiers need more than a product checkout, and say so when they cannot run (a skip names the missing piece; it is never a pass):
+
+    bash scripts/build_site.sh            # once per product revision: builds the website from the product's committed source into data/derived/site-build (Git-ignored)
+    python -m playwright --version        # tests/test_browser_site.py drives Chromium against that build and the product's real API on loopback
+
+`tests/test_live_site.py` makes read-only GET requests to https://neuralbridge.io (pages, sitemap, robots, llms.txt, openapi.json, agent.json, public scripts). It sends no POST, no key and never touches the hosted API. If the site is unreachable from where the suite runs, it is skipped as BLOCKED.
+
+Known defects are recorded as strict `xfail` tests that name the company issue; when the company fixes one the suite goes red until the marker is removed.
+
 ## Retrieve the initial public data
 
     python scripts/fetch_sources.py

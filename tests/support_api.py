@@ -97,9 +97,9 @@ def _free_port() -> int:
 
 
 @contextmanager
-def live_api(extra_env: dict[str, str] | None = None):
+def live_api(extra_env: dict[str, str] | None = None, port: int | None = None):
     operator_key = secrets.token_urlsafe(24)       # throwaway; never printed
-    port = _free_port()
+    port = port or _free_port()
     with tempfile.TemporaryDirectory(prefix="nb-api-test-") as tmp:
         state = Path(tmp)
         env = {
