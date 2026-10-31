@@ -97,7 +97,7 @@ def _free_port() -> int:
 
 
 @contextmanager
-def live_api():
+def live_api(extra_env: dict[str, str] | None = None):
     operator_key = secrets.token_urlsafe(24)       # throwaway; never printed
     port = _free_port()
     with tempfile.TemporaryDirectory(prefix="nb-api-test-") as tmp:
@@ -110,6 +110,7 @@ def live_api():
             "ASSURANCE_TENANT_LEDGERS": str(state / "tenants"),
             "ASSURANCE_ATTEST_LOGS": str(state / "attest-logs"),
             "ASSURANCE_API_KEYS": operator_key,
+            **(extra_env or {}),
         }
         server = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "assurance.api.service:app", "--host",
