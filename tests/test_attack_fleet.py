@@ -299,15 +299,14 @@ def test_an_advisory_matching_no_component_in_a_complete_fleet_is_clear_and_exit
 
 
 EMPTY_FLEET_DEFECT = (
-    "PRODUCT DEFECT: with no machine enrolled the fleet report says CLEAR, clear_is_complete "
-    "true and (CLI) exits 0, while its own 'not checked' note says the result is about an "
-    "empty fleet and not about any machine. A wrong ledger path, a new account or a restore "
-    "that lost the manifests then looks like a green supplier-bulletin check. Remove this "
-    "marker when an empty fleet is not reported as a complete clear.")
+    "PRODUCT DEFECT, PARTLY FIXED (neuralbridge#83, retested against 851fae1): with no machine "
+    "enrolled the CLI now exits 3 and clear_is_complete is false (both asserted by passing "
+    "tests), but `verdict` is still 'clear' and the human headline still reads 'CLEAR — no "
+    "machine in this fleet matches this advisory'. Remove this marker when the verdict and the "
+    "headline stop saying clear for a fleet nothing was assessed in.")
 
 
-@pytest.mark.xfail(strict=True, reason=EMPTY_FLEET_DEFECT + " [CLI]")
-def test_an_empty_fleet_is_never_reported_clear(tmp_path):
+def _empty_fleet_report(tmp_path):
     """A ledger that exists and holds evidence, but no machine."""
     run = assurance("art14", "--ledger", "has-no-machines.db", "signal", "C1", "--by",
                     "t:analyst", "--at", "2026-10-01T08:00:00Z", "--description", "d",
@@ -315,8 +314,20 @@ def test_an_empty_fleet_is_never_reported_clear(tmp_path):
     assert run.exit == 0, run.err
     run, report = assess_cli(tmp_path, A1, "has-no-machines.db")
     assert report["machines_in_fleet"] == 0                       # the premise
-    assert run.exit != 0 and report["verdict"] != "clear" and \
-        report["clear_is_complete"] is not True, (run.exit, report["verdict"])
+    return run, report
+
+
+def test_an_empty_fleet_is_not_a_clean_exit_and_not_a_complete_clear(tmp_path):
+    """FIXED upstream (neuralbridge#83): what automation reads."""
+    run, report = _empty_fleet_report(tmp_path)
+    assert run.exit == 3, run.exit
+    assert report["clear_is_complete"] is False
+
+
+@pytest.mark.xfail(strict=True, reason=EMPTY_FLEET_DEFECT + " [CLI]")
+def test_an_empty_fleet_is_never_reported_clear(tmp_path):
+    _, report = _empty_fleet_report(tmp_path)
+    assert report["verdict"] != "clear"
 
 
 def test_a_ledger_path_that_does_not_exist_is_could_not_run_and_creates_nothing(tmp_path):
@@ -438,12 +449,21 @@ def test_another_accounts_fleet_is_invisible_and_its_answer_is_its_own(api, cell
 
 
 @needs_api
+def test_an_account_with_no_machines_is_not_told_its_clear_is_complete(api):
+    """FIXED upstream (neuralbridge#83)."""
+    empty = api.make_account("fleet-empty-flag@example.invalid", "cell")
+    status, body = call(api.base, "POST", "/v1/fleet/advisory", key=empty, body={"advisory": A1})
+    assert status == 200 and body["machines_in_fleet"] == 0
+    assert body["clear_is_complete"] is False
+
+
+@needs_api
 @pytest.mark.xfail(strict=True, reason=EMPTY_FLEET_DEFECT + " [API]")
 def test_an_account_with_no_machines_is_not_told_its_fleet_is_clear(api):
     empty = api.make_account("fleet-empty@example.invalid", "cell")
     status, body = call(api.base, "POST", "/v1/fleet/advisory", key=empty, body={"advisory": A1})
     assert status == 200 and body["machines_in_fleet"] == 0
-    assert body["verdict"] != "clear" and body["clear_is_complete"] is not True, body["verdict"]
+    assert body["verdict"] != "clear", body["verdict"]
 
 
 @needs_api

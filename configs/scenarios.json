@@ -4,7 +4,7 @@
     {
       "id": "NB-001",
       "title": "Affected firmware versus corrected firmware",
-      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py); PASS at product-CLI level (tests/test_scenario_nb001_nb002_cli.py, tests/test_attack_fleet.py: 14 synthetic machines x 2 advisories); PASS at local-API level (tests/test_attack_fleet.py: API fan-out and the free single-machine check agree with the CLI for every machine); PASS at MCP-server level for routing, parity and the human-decision boundary (tests/test_attack_mcp.py; the advisory itself is deliberately not an MCP tool); FAIL (strict xfail) for an empty fleet reported CLEAR/complete/exit 0 (neuralbridge#83); UNCHECKED at hosted-staging level",
+      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py); PASS at product-CLI level (tests/test_scenario_nb001_nb002_cli.py, tests/test_attack_fleet.py: 14 synthetic machines x 2 advisories); PASS at local-API level (tests/test_attack_fleet.py: API fan-out and the free single-machine check agree with the CLI for every machine); PASS at MCP-server level for routing, parity and the human-decision boundary (tests/test_attack_mcp.py; the advisory itself is deliberately not an MCP tool); PARTLY FIXED in product 851fae1 (neuralbridge#83): an empty fleet now exits 3 and clear_is_complete is false (passing tests); verdict and headline still say clear (strict xfail); UNCHECKED at hosted-staging level",
       "fixture": "data/fixtures/rockwell_advisories.json",
       "expected_behavior": [
         "A vendor-published affected version is not treated as corrected.",
@@ -20,7 +20,7 @@
     {
       "id": "NB-002",
       "title": "Discontinued hardware with no available fix",
-      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py); PASS at product-CLI level (tests/test_scenario_nb001_nb002_cli.py); UNCHECKED at hosted-staging level. Not re-run through the API: the fan-out routes the discontinued-hardware case through the same classifier, see tests/test_attack_fleet.py",
+      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py); PASS at product-CLI level (tests/test_scenario_nb001_nb002_cli.py); PASS at local-API level (tests/test_scenario_nb001_nb002_api.py: discontinued module flagged, no fix invented, mitigation never called a patch, API = CLI for every machine); UNCHECKED at hosted-staging level",
       "fixture": "data/fixtures/rockwell_advisories.json",
       "expected_behavior": [
         "The discontinued device is identified as having no vendor fix available in the cited advisory.",
@@ -34,7 +34,7 @@
     {
       "id": "NB-003",
       "title": "Source refresh, deduplication and history",
-      "status": "fetcher-ready; product-integration pending",
+      "status": "PASS at product-CLI level on the product's intel module (tests/test_attack_intel_cli.py, product 851fae1): provenance with the SHA-256 of exactly the bytes seen, unchanged/changed dispositions with exact diffs, append-only store, rejected inputs recorded and never partially accepted, a real 0.0 EPSS distinct from a missing one, 'unchecked' before any KEV observation, absence from KEV stated as unestablished, EPSS dated, offline verbs open no socket, concurrent refreshes record one 'first', KEV/NVD/EPSS alone never make a machine affected; real public data (CISA KEV 1766 entries, NVD and EPSS for the reviewed CVEs, fetched 2026-10-31 by scripts/fetch_sources.py) used when present; FAIL (strict xfail, low) a refused foreign SQLite store is switched to WAL before it is refused (neuralbridge#92); UNCHECKED: live `intel refresh --live` against the official hosts (not run: no destructive or credentialed access and the product's own fetcher was not exercised), hosted-staging level, historical EPSS changes over real time",
       "fixture": "data/raw/ingestion-manifest.json",
       "expected_behavior": [
         "Every fetch records source, retrieval time, HTTP status, byte length and SHA-256.",
@@ -64,7 +64,7 @@
     {
       "id": "NB-006",
       "title": "Signed supplier advisory feed: publish, host, pin, trust and act",
-      "status": "PASS at product-CLI level (tests/test_attack_supplier_trust_cli.py: impersonation refused, key swap and clobber refused, edited/forged/reordered/duplicated records never trusted, operator-supplied key is inspect-only, only a pin makes a feed trusted, revoke/rotate/retire, per-advisory overrides that cannot admit a failed signature under a pinned key, tampered trust store refused); PASS at local-API level (tests/test_attack_supplier_api.py: hosted chain invariants, forged signature hosted by design and refused by the reader's pin, decider-only trust decisions, per-account trust, rollback baseline, signed fan-out equals unsigned); FAIL (strict xfail, product cf9f93c) for supplier fetch applying no URL policy (neuralbridge#86) and an overlong feed id returning 500 (neuralbridge#87); UNCHECKED at hosted-staging level and for CSAF-translated advisories through a hand-signed record",
+      "status": "PASS at product-CLI level (tests/test_attack_supplier_trust_cli.py: impersonation refused, key swap and clobber refused, edited/forged/reordered/duplicated records never trusted, operator-supplied key is inspect-only, only a pin makes a feed trusted, revoke/rotate/retire, per-advisory overrides that cannot admit a failed signature under a pinned key, tampered trust store refused); PASS at local-API level (tests/test_attack_supplier_api.py: hosted chain invariants, forged signature hosted by design and refused by the reader's pin, decider-only trust decisions, per-account trust, rollback baseline, signed fan-out equals unsigned); FAIL (strict xfail, product cf9f93c) for supplier fetch applying no URL policy (neuralbridge#86) and an overlong feed id returning 500 (neuralbridge#87); UNCHECKED at hosted-staging level and for CSAF-translated advisories through a hand-signed record; PASS at local-API level for opening a change case from a pinned, signed advisory (tests/test_attack_signed_case_api.py, product 851fae1): only a key this account pinned for this supplier opens a case without a named person, replay is one case, nothing closes",
       "fixture": "generated per test with the product's own CLI (synthetic supplier, synthetic advisories)",
       "expected_behavior": [
         "Verified is six separate facts; only readable + valid + pinned for this supplier + intact chain is trusted.",
@@ -77,13 +77,38 @@
     {
       "id": "NB-007",
       "title": "Public website claims against the product",
-      "status": "PASS at source level (tests/test_site_claims.py: plan copy equals /v1/plans per tier, every route/command/tool/link/anchor named exists, MCP page routes and tiers match behaviour, the plan copy's promises hold when exercised); PASS at live read-only level for 27 critical pages, deployed llms.txt/openapi.json/agent.json equal to source, no checkout link, HSTS, no secret in public scripts (tests/test_live_site.py); FAIL (strict xfail) for /docs, /roadmap and /docs/assurance/deploy linked and 404, /roadmap in the sitemap (neuralbridge#84), and no CSP/frame/nosniff/referrer headers on /console and /verify (neuralbridge#85); UNCHECKED: which commit is deployed, the hosted API (not probed), checkout, plain-http redirect (BLOCKED by the sandbox proxy)",
+      "status": "PASS at source level (tests/test_site_claims.py: plan copy equals /v1/plans per tier, every route/command/tool/link/anchor named exists, MCP page routes and tiers match behaviour, the plan copy's promises hold when exercised); PASS at live read-only level for 27 critical pages, deployed llms.txt/openapi.json/agent.json equal to source, no checkout link, HSTS, no secret in public scripts (tests/test_live_site.py); FAIL (strict xfail) for /docs, /roadmap and /docs/assurance/deploy linked and 404, /roadmap in the sitemap (neuralbridge#84), and no CSP/frame/nosniff/referrer headers on /console and /verify (neuralbridge#85); PASS in a real browser against the site built from source and the real API (tests/test_browser_site.py: pricing equals /v1/plans, key goes only to the API origin and stays in this tab, 401/402 shown as the API's answer, hostile text shown as text, verifier judges files); FAIL (strict xfail) key-entry page frameable by another origin (neuralbridge#85); PASS HTML report escapes hostile text (tests/test_attack_report_html.py); UNCHECKED: which commit is deployed, the hosted API (not probed), checkout, plain-http redirect (BLOCKED by the sandbox proxy)",
       "fixture": "the product checkout's app/, public/ and docs/ read as data; https://neuralbridge.io read-only GET",
       "expected_behavior": [
         "Every route, command and tool the site names exists.",
         "Every page the site links to, lists in its sitemap or tells agents to read exists.",
         "Pricing copy is the plan table the API serves; each stated number is the number enforced.",
         "A pricing page is not evidence that a paid workflow works."
+      ],
+      "source_ids": []
+    },
+    {
+      "id": "NB-008",
+      "title": "CRA Article 14 clocks and filing records through the CLI and API",
+      "status": "PASS at local-API and product-CLI level for 24 h / 72 h elapsed-hour clocks across offsets and both daylight-saving transitions, calendar-month clamping (leap and common February), filing on/after the deadline, drafts that record nothing, Member State validation, CLI = API (tests/test_attack_art14_surfaces.py); FAIL (strict xfail, product cf9f93c): naive timestamps give 500 on awareness/filings/user-notification (neuralbridge#89), a future-dated or content-free filing reads as filed_on_time (neuralbridge#90), EL called a non-member (neuralbridge#91); UNCHECKED: whether day and month periods should be counted under Regulation (EEC, Euratom) No 1182/71 (primary text not retrievable: eur-lex.europa.eu unreachable from the laboratory sandbox); not legal advice",
+      "fixture": "generated per test (synthetic cases)",
+      "expected_behavior": [
+        "Hour clocks are elapsed hours in UTC whatever the offset.",
+        "A filing cannot predate awareness or postdate now.",
+        "A draft check records nothing.",
+        "Time without an offset is refused, never guessed."
+      ],
+      "source_ids": []
+    },
+    {
+      "id": "NB-009",
+      "title": "The watch: scheduled collection, drift, advisory feeds and push",
+      "status": "PASS at product-CLI level on product 851fae1 (tests/test_attack_watch_cli.py): first pass is a finding and an identical pass on the machine is quiet and seals nothing; an export folder is never reported unchanged; content changes are detected, a declared stamp moving is not; symlink and plan-path escapes are not followed; 15 malformed configurations refused; Art. 14 drafts are not filings and decide nothing; a feed signed by another key produces no actionable finding; `watch push` sends no path, no file content and no failure reason, only to the named host, never follows a redirect, refuses URLs the product's own policy refuses, retries a bounded number of times and never prints the key; FAIL (strict xfail): a transient missing export seals a manifest without the item and the fleet then misses advisories against it, even after the export returns (neuralbridge#93); `watch status` never ages the last verdict (neuralbridge#94); UNCHECKED: hosted `/v1/watch/report` ingest of a real push beyond the recording listener, long-running scheduling",
+      "fixture": "the offline kit's synthetic export folder (tests/test_attack_offline_kit.make_kit)",
+      "expected_behavior": [
+        "I could not look and nothing moved never share an exit code.",
+        "A change is detected where the content moved.",
+        "Nothing leaves the plant but what push says it sends."
       ],
       "source_ids": []
     }
