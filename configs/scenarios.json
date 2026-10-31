@@ -60,6 +60,32 @@
         "The original event objects remain unchanged by test processing."
       ],
       "source_ids": []
+    },
+    {
+      "id": "NB-006",
+      "title": "Signed supplier advisory feed: publish, host, pin, trust and act",
+      "status": "PASS at product-CLI level (tests/test_attack_supplier_trust_cli.py: impersonation refused, key swap and clobber refused, edited/forged/reordered/duplicated records never trusted, operator-supplied key is inspect-only, only a pin makes a feed trusted, revoke/rotate/retire, per-advisory overrides that cannot admit a failed signature under a pinned key, tampered trust store refused); PASS at local-API level (tests/test_attack_supplier_api.py: hosted chain invariants, forged signature hosted by design and refused by the reader's pin, decider-only trust decisions, per-account trust, rollback baseline, signed fan-out equals unsigned); FAIL (strict xfail, product cf9f93c) for supplier fetch applying no URL policy (neuralbridge#86) and an overlong feed id returning 500 (neuralbridge#87); UNCHECKED at hosted-staging level and for CSAF-translated advisories through a hand-signed record",
+      "fixture": "generated per test with the product's own CLI (synthetic supplier, synthetic advisories)",
+      "expected_behavior": [
+        "Verified is six separate facts; only readable + valid + pinned for this supplier + intact chain is trusted.",
+        "A key the reader merely holds or the feed names is never trusted; acting needs a pin a person made from a source other than the feed.",
+        "A forged, edited, foreign-key, revoked, retired or unreadable feed is refused and never reported clear.",
+        "A trust decision is a named person's, per account, and is attributed in the ledger."
+      ],
+      "source_ids": []
+    },
+    {
+      "id": "NB-007",
+      "title": "Public website claims against the product",
+      "status": "PASS at source level (tests/test_site_claims.py: plan copy equals /v1/plans per tier, every route/command/tool/link/anchor named exists, MCP page routes and tiers match behaviour, the plan copy's promises hold when exercised); PASS at live read-only level for 27 critical pages, deployed llms.txt/openapi.json/agent.json equal to source, no checkout link, HSTS, no secret in public scripts (tests/test_live_site.py); FAIL (strict xfail) for /docs, /roadmap and /docs/assurance/deploy linked and 404, /roadmap in the sitemap (neuralbridge#84), and no CSP/frame/nosniff/referrer headers on /console and /verify (neuralbridge#85); UNCHECKED: which commit is deployed, the hosted API (not probed), checkout, plain-http redirect (BLOCKED by the sandbox proxy)",
+      "fixture": "the product checkout's app/, public/ and docs/ read as data; https://neuralbridge.io read-only GET",
+      "expected_behavior": [
+        "Every route, command and tool the site names exists.",
+        "Every page the site links to, lists in its sitemap or tells agents to read exists.",
+        "Pricing copy is the plan table the API serves; each stated number is the number enforced.",
+        "A pricing page is not evidence that a paid workflow works."
+      ],
+      "source_ids": []
     }
   ]
 }
