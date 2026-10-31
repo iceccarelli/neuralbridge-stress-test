@@ -109,6 +109,9 @@ def live_api(extra_env: dict[str, str] | None = None, port: int | None = None):
             "ASSURANCE_ACCOUNTS": str(state / "accounts.db"),
             "ASSURANCE_TENANT_LEDGERS": str(state / "tenants"),
             "ASSURANCE_ATTEST_LOGS": str(state / "attest-logs"),
+            # hosted supplier feeds default to a relative "supplier-feeds" directory: without
+            # this the server writes them into whatever directory the suite runs from
+            "ASSURANCE_SUPPLIER_FEEDS": str(state / "supplier-feeds"),
             "ASSURANCE_API_KEYS": operator_key,
             **(extra_env or {}),
         }

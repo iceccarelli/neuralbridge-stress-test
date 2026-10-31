@@ -31,3 +31,6 @@ data/derived/**
 .idea/
 .vscode/
 *.db
+supplier-feeds/
+*.whl
+*.jsonl.lock
