@@ -4,7 +4,7 @@
     {
       "id": "NB-001",
       "title": "Affected firmware versus corrected firmware",
-      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py, product match_item); PASS at product-CLI level (tests/test_scenario_nb001_nb002_cli.py, local subprocess, real SQLite, run only where a product checkout is present); BLOCKED at API and MCP-server level (no fastapi stack in this harness's environment); UNCHECKED at hosted-staging level",
+      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py); PASS at product-CLI level (tests/test_scenario_nb001_nb002_cli.py, tests/test_attack_fleet.py: 14 synthetic machines x 2 advisories); PASS at local-API level (tests/test_attack_fleet.py: API fan-out and the free single-machine check agree with the CLI for every machine); PASS at MCP-server level for routing, parity and the human-decision boundary (tests/test_attack_mcp.py; the advisory itself is deliberately not an MCP tool); FAIL (strict xfail) for an empty fleet reported CLEAR/complete/exit 0 (neuralbridge#83); UNCHECKED at hosted-staging level",
       "fixture": "data/fixtures/rockwell_advisories.json",
       "expected_behavior": [
         "A vendor-published affected version is not treated as corrected.",
@@ -20,7 +20,7 @@
     {
       "id": "NB-002",
       "title": "Discontinued hardware with no available fix",
-      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py, product match_item); PASS at product-CLI level (tests/test_scenario_nb001_nb002_cli.py); BLOCKED at API and MCP-server level; UNCHECKED at hosted-staging level",
+      "status": "PASS at library level (tests/test_scenario_nb001_nb002.py); PASS at product-CLI level (tests/test_scenario_nb001_nb002_cli.py); UNCHECKED at hosted-staging level. Not re-run through the API: the fan-out routes the discontinued-hardware case through the same classifier, see tests/test_attack_fleet.py",
       "fixture": "data/fixtures/rockwell_advisories.json",
       "expected_behavior": [
         "The discontinued device is identified as having no vendor fix available in the cited advisory.",
