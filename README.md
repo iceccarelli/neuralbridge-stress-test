@@ -53,6 +53,13 @@ sources with provenance. A fresh Codespace runs `bootstrap.sh` itself (`.devcont
 
 In Codespaces, run the commands above from the repository root. Never commit .venv, downloaded raw feeds, API keys, customer records, or private assurance evidence.
 
+## Keeping up with the product
+
+    bash scripts/refresh.sh            # fast-forwards ../neuralbridge-main, rebuilds the site if the revision moved, runs everything
+    bash scripts/refresh.sh --quick    # skips the site build
+
+It prints the product SHA, the result line, and any known defect that now appears fixed.
+
 ## Browser and live-site tiers
 
 Two tiers need more than a product checkout, and say so when they cannot run (a skip names the missing piece; it is never a pass):
