@@ -37,7 +37,33 @@ from conftest import PRODUCT_SRC
 
 LAB = Path(__file__).resolve().parent.parent
 BUILD = LAB / "data" / "derived" / "site-build"
-CHROME = next(iter(sorted(Path("/opt/pw-browsers").glob("chromium-*/chrome-linux*/chrome"))), None)
+def find_chrome():
+    """A Chromium to drive, from (in order) NEURALBRIDGE_CHROME, the sandbox's pre-installed copy,
+    Playwright's own download (``python -m playwright install chromium``), or a system browser."""
+    import os
+    import shutil
+    env = os.environ.get("NEURALBRIDGE_CHROME")
+    if env and Path(env).is_file():
+        return Path(env)
+    preinstalled = sorted(Path("/opt/pw-browsers").glob("chromium-*/chrome-linux*/chrome"))
+    if preinstalled:
+        return preinstalled[0]
+    try:
+        from playwright.sync_api import sync_playwright as _sp
+        with _sp() as p:
+            own = Path(p.chromium.executable_path)
+        if own.is_file():
+            return own
+    except Exception:                                         # noqa: BLE001 - absence is the answer
+        pass
+    for name in ("chromium", "chromium-browser", "google-chrome", "chrome"):
+        found = shutil.which(name)
+        if found:
+            return Path(found)
+    return None
+
+
+CHROME = find_chrome()
 API_PORT, SITE = 18765, "http://localhost:3000"
 KEY_TEXT = "nb_SYNTHETIC_BROWSER_KEY_do_not_persist_0123456789"
 
@@ -50,7 +76,8 @@ except ImportError:                                           # pragma: no cover
 _ok, _why = api_importable()
 _blocked = (None if (BUILD / ".next").is_dir() and _playwright and CHROME and _ok and PRODUCT_SRC
             else "BLOCKED: browser tests need a site build (bash scripts/build_site.sh), "
-                 "playwright, Chromium and the product API")
+                 "playwright, a Chromium (python -m playwright install --with-deps chromium, or "
+                 "set NEURALBRIDGE_CHROME) and the product API")
 pytestmark = pytest.mark.skipif(_blocked is not None, reason=_blocked or "")
 
 
