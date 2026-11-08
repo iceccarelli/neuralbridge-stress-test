@@ -31,12 +31,17 @@ def manifest(*checks):
     )
 
 
+#: Items (not functions) fix the configuration hash, so one hash serves every manifest here.
+#: The product counts a pass as current only if it states the configuration it ran against.
+CONFIG = manifest().configuration_hash()
+
+
 def record(seq, days, verified=(), not_verified=(), n_a=(), tier="validated"):
     return VerificationRecord(
         content_hash=f"{seq:064x}", effective_at=T0 + timedelta(days=days), ledger_seq=seq,
         product="p", product_version="1", verdict="pass", tier=tier,
         checks_verified=tuple(verified), checks_not_verified=tuple(not_verified),
-        checks_not_applicable=tuple(n_a),
+        checks_not_applicable=tuple(n_a), configuration_hash=CONFIG,
     )
 
 

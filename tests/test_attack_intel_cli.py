@@ -207,12 +207,6 @@ def test_a_store_that_is_not_an_intel_store_is_refused_and_its_contents_survive(
     assert [r[0] for r in con.execute("SELECT name FROM sqlite_master")] == ["precious"]
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "PRODUCT DEFECT (low): `intel ingest --store FILE` where FILE is somebody else's SQLite "
-    "database refuses it (exit 2, correct) but only AFTER switching it to WAL journal mode "
-    "(header bytes 18-19 change from 1 to 2; a -wal/-shm pair can appear). A command that decides "
-    "a file is not its own must not have modified it. Remove this marker when the application-id "
-    "check runs before any pragma that writes."))
 def test_a_refused_foreign_store_is_byte_for_byte_untouched(st):
     other = _foreign_store(st)
     before = other.read_bytes()

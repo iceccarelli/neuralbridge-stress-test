@@ -519,21 +519,30 @@ def _restored_volume_with_service(vol, good, tmp_path):
     restored = copy_of(good.base, tmp_path, "restored")
     for sidecar in restored.rglob("*-[sw][ha][ml]"):
         sidecar.unlink()
-    port, op = _free_port(), secrets.token_urlsafe(16)
+    port, op = _free_port(), secrets.token_urlsafe(32)
     env = {"PATH": os.environ.get("PATH", ""), "HOME": str(tmp_path), "PYTHONPATH": PRODUCT_SRC,
            "PYTHONDONTWRITEBYTECODE": "1",
            "ASSURANCE_LEDGER": str(restored / "art14-register.db"),
            "ASSURANCE_ACCOUNTS": str(restored / "accounts.db"),
            "ASSURANCE_TENANT_LEDGERS": str(restored / "tenants"),
-           "ASSURANCE_ATTEST_LOGS": str(restored / "attestations"), "ASSURANCE_API_KEYS": op}
+           "ASSURANCE_ATTEST_LOGS": str(restored / "attestations"),
+           # the hosted supplier feeds default to a relative directory: keep them on the volume
+           "ASSURANCE_SUPPLIER_FEEDS": str(restored / "supplier-feeds"),
+           "ASSURANCE_API_KEYS": op}
     server = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "assurance.api.service:app", "--host", "127.0.0.1",
          "--port", str(port), "--log-level", "error"], env=env, stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL)
+        stderr=subprocess.PIPE, text=True)
     base = f"http://127.0.0.1:{port}"
     for _ in range(100):
-        if call(base, "GET", "/healthz")[0] == 200:
-            return restored, server, base, call, op
+        if server.poll() is not None:
+            raise RuntimeError("API exited on the restored volume: "
+                               + (server.stderr.read() or "")[-500:])
+        try:
+            if call(base, "GET", "/healthz")[0] == 200:
+                return restored, server, base, call, op
+        except OSError:
+            pass
         time.sleep(0.3)
     server.kill()
     raise RuntimeError("API did not start on the restored volume")
@@ -547,12 +556,6 @@ def real_problems(body) -> list[str]:
     return [p for p in body.get("problems", []) if not p.startswith(SIDECARS)]
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "PRODUCT DEFECT (restore_check verify): it is meant to be read-only, but on a restored "
-    "volume that the real service has opened (accounts.db is in WAL mode) `verify` itself "
-    "creates accounts.db-wal and accounts.db-shm in the directory it checks, then lists them "
-    "as 'not in the manifest - added since the backup was taken' and exits 1 on a healthy "
-    "volume. Remove this marker when verify leaves the directory as it found it."))
 def test_a_healthy_restored_volume_with_the_service_running_verifies_under_live(vol, good,
                                                                                 tmp_path):
     restored, server, *_ = _restored_volume_with_service(vol, good, tmp_path)
