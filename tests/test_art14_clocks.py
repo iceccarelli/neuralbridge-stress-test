@@ -21,6 +21,7 @@ from assurance.security.art14 import (
     Stage,
     Track,
 )
+from support_art14 import complete
 
 UTC = UTC
 ACTOR = Actor("tester", "stress-test")
@@ -83,9 +84,9 @@ def test_no_final_deadline_is_computed_without_a_measure(tmp_path):
     "submitted, due",
     [
         (utc(2026, 9, 21, 9, 0), utc(2026, 10, 21, 9, 0)),
-        (utc(2027, 1, 31, 10, 0), utc(2027, 2, 28, 10, 0)),    # clamp to Feb 28
-        (utc(2028, 1, 31, 10, 0), utc(2028, 2, 29, 10, 0)),    # leap year
-        (utc(2026, 12, 31, 23, 59), utc(2027, 1, 31, 23, 59)),  # year rollover
+        (utc(2025, 1, 31, 10, 0), utc(2025, 2, 28, 10, 0)),    # clamp to Feb 28
+        (utc(2024, 1, 31, 10, 0), utc(2024, 2, 29, 10, 0)),    # leap year
+        (utc(2025, 12, 31, 23, 59), utc(2026, 1, 31, 23, 59)),  # year rollover
         (utc(2026, 3, 31, 0, 0), utc(2026, 4, 30, 0, 0)),      # 31 -> 30-day month
     ],
 )
@@ -99,12 +100,25 @@ def test_incident_final_is_one_calendar_month_after_the_72h_notification(tmp_pat
 def test_a_filing_after_the_deadline_is_reported_late_and_on_the_deadline_is_on_time(tmp_path):
     aware = utc(2026, 9, 19, 6, 30)
     reg = open_case(tmp_path, Track.VULNERABILITY, aware)
-    reg.record_filing("C1", Stage.EARLY_WARNING, utc(2026, 9, 20, 6, 30), {}, ACTOR)
+    kind = "actively_exploited_vulnerability"
+    reg.record_filing("C1", Stage.EARLY_WARNING, utc(2026, 9, 20, 6, 30),
+                      complete(kind, "early_warning"), ACTOR)
     one_second_over = utc(2026, 9, 22, 6, 30) + timedelta(seconds=1)
-    reg.record_filing("C1", Stage.NOTIFICATION, one_second_over, {}, ACTOR)
+    reg.record_filing("C1", Stage.NOTIFICATION, one_second_over,
+                      complete(kind, "notification"), ACTOR)
     d = reg.case("C1").deadlines
     assert d.early_warning.status == "filed_on_time"   # exactly at 24 h is within 24 h
     assert d.notification.status == "filed_late"       # one second over 72 h is late
+
+
+def test_an_empty_filing_in_time_is_recorded_but_never_counted_as_on_time(tmp_path):
+    """A submission with no content cannot satisfy a deadline: missing is not success."""
+    aware = utc(2026, 9, 19, 6, 30)
+    reg = open_case(tmp_path, Track.VULNERABILITY, aware)
+    reg.record_filing("C1", Stage.EARLY_WARNING, utc(2026, 9, 19, 7, 0), {}, ACTOR)
+    d = reg.case("C1").deadlines
+    assert d.early_warning.status == "recorded_incomplete"
+    assert d.early_warning.met is None
 
 
 def test_a_filing_dated_before_awareness_is_refused(tmp_path):

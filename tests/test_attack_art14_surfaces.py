@@ -1,7 +1,8 @@
 """CRA Article 14 workflow, attacked through the real CLI and the real API.
 
 Evidence level: ``python -m assurance art14 ...`` (subprocess, real SQLite) and the product's real
-FastAPI app on loopback (throwaway Register-tier account), SYNTHETIC cases. Complements
+FastAPI app on loopback (throwaway Cell-tier account with a decider operator; see the
+Register-tier finding at the end), SYNTHETIC cases. Complements
 tests/test_art14_clocks.py (library level) with: the same clocks through both surfaces, instants
 given in other offsets and across daylight-saving transitions, filing boundaries, what a draft
 does and does not do, and Member State validation. Not hosted staging; not legal advice.
@@ -39,13 +40,15 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from support_api import api_importable, call, live_api
+from support_art14 import complete
 from support_cli import assurance
 
 from conftest import PRODUCT_SRC
 
 pytestmark = pytest.mark.skipif(PRODUCT_SRC is None, reason="BLOCKED: no product checkout")
 
-ACTOR = {"identifier": "t", "role": "analyst"}
+DECIDER = "Alice Decider"
+ACTOR = {"identifier": DECIDER, "role": "analyst"}
 _ok, _why = api_importable()
 needs_api = pytest.mark.skipif(not _ok, reason=f"BLOCKED: product API not runnable ({_why})")
 
@@ -68,7 +71,13 @@ def api():
 
 @pytest.fixture(scope="module")
 def key(api):
-    k = api.make_account("art14@example.invalid", "register")
+    account_key = api.make_account("art14@example.invalid", "cell")
+    # Awareness, triage and filings are human decisions: the product refuses an account-level
+    # key (403 operator_required) and attributes the act to an individual 'decider' operator.
+    status, op = call(api.base, "POST", "/v1/operators", key=account_key,
+                      body={"name": DECIDER, "role": "decider"})
+    assert status == 201, op
+    k = op["api_key"]
     api._art14_key = k                    # shared with helpers that are not fixtures
     return k
 
@@ -110,8 +119,8 @@ AWARENESS_INSTANTS = [
     ("spring-forward day, after the gap, CEST", "2026-03-29T03:30:00+02:00"),
     ("autumn change, first 02:30 (CEST)", "2026-10-25T02:30:00+02:00"),
     ("autumn change, second 02:30 (CET)", "2026-10-25T02:30:00+01:00"),
-    ("year boundary at -12:00", "2026-12-31T23:59:59-12:00"),
-    ("leap day at +05:30", "2028-02-29T12:00:00+05:30"),
+    ("year boundary at -12:00", "2025-12-31T23:59:59-12:00"),
+    ("leap day at +05:30", "2024-02-29T12:00:00+05:30"),
     ("friday evening, across a weekend", "2026-10-30T17:00:00Z"),
     ("offset +14:00", "2026-06-01T09:00:00+14:00"),
     ("offset -12:00", "2026-06-01T09:00:00-12:00"),
@@ -174,15 +183,15 @@ def test_a_fractional_second_never_makes_a_deadline_later_than_the_true_one(api,
     ("2026-10-31T10:00:00Z", "2026-11-14T10:00:00Z"),
     ("2026-10-10T10:00:00Z", "2026-10-24T10:00:00Z"),          # across the autumn change
     ("2026-02-20T12:00:00Z", "2026-03-06T12:00:00Z"),          # across the end of February
-    ("2028-02-20T12:00:00Z", "2028-03-05T12:00:00Z"),          # leap year
-    ("2026-12-25T23:00:00Z", "2027-01-08T23:00:00Z"),          # across the year
+    ("2024-02-20T12:00:00Z", "2024-03-05T12:00:00Z"),          # leap year
+    ("2025-12-25T23:00:00Z", "2026-01-08T23:00:00Z"),          # across the year
     ("2026-06-01T09:00:00+14:00", "2026-06-14T19:00:00Z"),     # offset input, same instant rule
 ])
 def test_the_vulnerability_final_report_is_14_days_after_the_measure_in_elapsed_time(
         api, key, measure, expected):
     """The product's stated rule (elapsed time, UTC). Whether the law counts the last day to its
     end instead (Reg. 1182/71) is UNCHECKED, see the module docstring."""
-    cid, _, _ = open_case(api, key, "actively_exploited_vulnerability", "2026-02-01T08:00:00Z")
+    cid, _, _ = open_case(api, key, "actively_exploited_vulnerability", "2024-01-01T08:00:00Z")
     status, body = call(api.base, "POST", f"/v1/cases/{cid}/measure", key=key, body={
         "available_at": measure, "description": "workaround", "actor": ACTOR})
     assert status == 201, body
@@ -199,11 +208,11 @@ def test_no_final_report_date_is_invented_before_a_measure_is_recorded(api, key)
 
 @needs_api
 @pytest.mark.parametrize("submitted,expected", [
-    ("2028-01-31T10:00:00Z", "2028-02-29T10:00:00Z"),          # clamp to a leap February
-    ("2027-01-31T10:00:00Z", "2027-02-28T10:00:00Z"),          # clamp to a common February
+    ("2024-01-31T10:00:00Z", "2024-02-29T10:00:00Z"),          # clamp to a leap February
+    ("2025-01-31T10:00:00Z", "2025-02-28T10:00:00Z"),          # clamp to a common February
     ("2026-03-31T23:30:00Z", "2026-04-30T23:30:00Z"),          # 31 -> 30-day month
-    ("2026-12-31T23:30:00Z", "2027-01-31T23:30:00Z"),          # across the year
-    ("2028-02-29T08:00:00Z", "2028-03-29T08:00:00Z"),          # from the leap day
+    ("2025-12-31T23:30:00Z", "2026-01-31T23:30:00Z"),          # across the year
+    ("2024-02-29T08:00:00Z", "2024-03-29T08:00:00Z"),          # from the leap day
     ("2026-05-31T00:00:00Z", "2026-06-30T00:00:00Z"),
     ("2026-10-15T12:00:00Z", "2026-11-15T12:00:00Z"),
 ])
@@ -218,12 +227,23 @@ def test_the_incident_final_report_is_one_calendar_month_after_the_notification_
 
 
 @needs_api
-def test_filing_the_notification_early_brings_the_incident_final_report_forward(api, key):
+def test_the_incident_final_report_follows_the_first_recorded_notification_and_cannot_be_moved(
+        api, key):
+    """The final report runs one month from the notification's submission. A later record may
+    not declare an EARLIER submission for the same stage: that would rewrite lateness after the
+    fact, so it is refused and the original stands (an integrity rule, not a legal one; the
+    earlier version of this test expected "the earlier one wins", which the product no longer
+    allows and which this suite does not claim the law requires)."""
     cid, _, _ = open_case(api, key, "severe_incident", "2026-03-01T00:00:00Z")
-    for at in ("2026-03-03T23:00:00Z", "2026-03-02T01:00:00Z"):         # the earlier one wins
-        assert call(api.base, "POST", f"/v1/cases/{cid}/filings", key=key, body={
-            "stage": "notification", "submitted_at": at, "payload": {}, "actor": ACTOR})[0] == 201
-    assert deadlines(api, key, cid)["final"]["due_at"] == "2026-04-02T01:00:00Z"
+    first = "2026-03-03T23:00:00Z"
+    assert call(api.base, "POST", f"/v1/cases/{cid}/filings", key=key, body={
+        "stage": "notification", "submitted_at": first, "payload": {}, "actor": ACTOR})[0] == 201
+    assert deadlines(api, key, cid)["final"]["due_at"] == "2026-04-03T23:00:00Z"
+    status, _ = call(api.base, "POST", f"/v1/cases/{cid}/filings", key=key, body={
+        "stage": "notification", "submitted_at": "2026-03-02T01:00:00Z", "payload": {},
+        "actor": ACTOR})
+    assert status == 409
+    assert deadlines(api, key, cid)["final"]["due_at"] == "2026-04-03T23:00:00Z"
 
 
 # ------------------------------------------------------------------------- filing boundaries
@@ -238,7 +258,7 @@ def test_a_filing_on_the_deadline_is_on_time_and_one_second_after_it_is_late(
     due = parse(deadlines(api, key, cid)["early_warning"]["due_at"])
     status, body = call(api.base, "POST", f"/v1/cases/{cid}/filings", key=key, body={
         "stage": "early_warning", "submitted_at": iso(due + timedelta(seconds=offset_seconds)),
-        "payload": {}, "actor": ACTOR})
+        "payload": complete("actively_exploited_vulnerability", "early_warning"), "actor": ACTOR})
     assert status == 201, body
     assert deadlines(api, key, cid)["early_warning"]["status"] == status_expected
 
@@ -292,11 +312,6 @@ def test_the_cli_draft_check_is_not_a_submission_either(tmp_path):
     assert ledger.read_bytes() == before                     # and nothing was written
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "PRODUCT DEFECT: POST /v1/cases/{id}/filings (and `art14 file`) records a submission dated "
-    "in the FUTURE. A filing that has not happened yet cannot meet a deadline, but the case then "
-    "shows the clock as filed_on_time. Remove this marker when a future-dated submission is "
-    "refused (a small clock-skew allowance is the company's call)."))
 @needs_api
 def test_a_filing_dated_in_the_future_cannot_mark_a_deadline_as_met(api, key):
     aware = datetime.now(UTC) - timedelta(hours=1)
@@ -308,13 +323,6 @@ def test_a_filing_dated_in_the_future_cannot_mark_a_deadline_as_met(api, key):
     assert status >= 400 or not met, "a submission that has not happened was recorded as on time"
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "PRODUCT DEFECT: a filing whose payload is empty, or lacks every field the product's own "
-    "validator calls blocking for that stage, marks the deadline filed_on_time with nothing in "
-    "the case view saying the recorded content is incomplete. The product knows the difference "
-    "(POST /v1/spec/validate says submittable:false; an empty filing is overridden by a later "
-    "complete one), but a lone incomplete filing reads as a met legal deadline. Remove this "
-    "marker when such a filing is refused or shown as incomplete."))
 @needs_api
 def test_a_filing_with_none_of_the_required_content_does_not_read_as_a_met_deadline(api, key):
     cid, _, _ = open_case(api, key, "actively_exploited_vulnerability", "2026-02-01T08:00:00Z")
@@ -360,10 +368,6 @@ def test_an_unusable_awareness_time_is_refused_and_starts_no_clock(api, key, bad
     assert case["awareness"] is None and case["state"] == "signal_received"
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "PRODUCT DEFECT: a date-only value ('2026-02-01', parsed as a naive midnight) for an "
-    "awareness time answers a bare 500; see the naive-timestamp matrix below. Remove this "
-    "marker when it answers 4xx."))
 @needs_api
 def test_a_date_only_awareness_time_is_refused_not_a_500(api, key):
     cid = case_id()
@@ -376,11 +380,6 @@ def test_a_date_only_awareness_time_is_refused_not_a_500(api, key):
 
 
 NAIVE = "2026-02-01T08:00:00"
-NAIVE_DEFECT = (
-    "PRODUCT DEFECT: a timestamp with no offset is refused with 422 on /signal and /measure, "
-    "but on /awareness (all three time fields), /filings (submitted_at) and /user-notification "
-    "(at) it answers a bare 500 Internal Server Error (nothing is written). The library refuses "
-    "it correctly; the API does not map the error. Remove this marker when each answers 4xx.")
 
 
 def _naive_body(route, field):
@@ -402,17 +401,16 @@ def _naive_body(route, field):
 
 
 NAIVE_ROUTES = [
-    ("signal", "received_at", False), ("measure", "available_at", False),
-    ("awareness", "established_at", True), ("awareness", "assessment_started_at", True),
-    ("awareness", "assessment_completed_at", True), ("filings", "submitted_at", True),
-    ("user-notification", "at", True),
+    ("signal", "received_at"), ("measure", "available_at"),
+    ("awareness", "established_at"), ("awareness", "assessment_started_at"),
+    ("awareness", "assessment_completed_at"), ("filings", "submitted_at"),
+    ("user-notification", "at"),
 ]
 
 
 def _naive_params():
-    for route, field, broken in NAIVE_ROUTES:
-        yield pytest.param(route, field, id=f"{route}.{field}", marks=(
-            [pytest.mark.xfail(strict=True, reason=NAIVE_DEFECT)] if broken else []))
+    for route, field in NAIVE_ROUTES:
+        yield pytest.param(route, field, id=f"{route}.{field}")
 
 
 @needs_api
@@ -547,12 +545,6 @@ def test_an_empty_member_state_list_is_not_accepted_as_nothing_to_report(api, ke
     assert status == 200 and body["submittable"] is False
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "PRODUCT DEFECT (wording, low severity): entering 'EL' is reported as 'not an EU Member "
-    "State'. EL is the EU institutions' own code for Greece (ISO 3166-1 uses GR). Telling a "
-    "person that Greece is not a Member State is wrong; the issue should say 'use GR (ISO "
-    "3166-1 alpha-2)' or accept it. Which code the ENISA platform expects is UNCHECKED here. "
-    "Remove this marker when the message no longer says EL is not a Member State."))
 @needs_api
 def test_the_eus_own_code_for_greece_is_not_called_a_non_member(api, key):
     issues = _member_issues(api, ["DE", "EL"])
@@ -563,3 +555,32 @@ def test_the_eus_own_code_for_greece_is_not_called_a_non_member(api, key):
 @needs_api
 def test_greece_by_its_iso_code_is_accepted(api, key):
     assert _member_issues(api, ["GR"]) == []
+
+
+# --- the plan that is sold vs the plan that can decide
+@needs_api
+@pytest.mark.xfail(strict=True, reason=(
+    "FINDING (not yet filed upstream; product 0dd2517): awareness, triage and filings are listed "
+    "for the Register plan (app/lib/routes.ts, docs/claims-registry.md) but the product now "
+    "refuses them to an account-level key (403 operator_required) and only an individual "
+    "'decider' operator may make them. POST /v1/operators is Cell-only (402 "
+    "plan_does_not_include_machine_verification), so a Register-only account has no way to "
+    "make the decisions its plan lists. Either operators must be available on Register or the "
+    "Register listing is wrong; the expectation here is that a plan's listed workflow is "
+    "reachable on that plan."))
+def test_a_register_only_account_can_reach_the_decisions_the_register_plan_lists(api):
+    account_key = api.make_account("register-only@example.invalid", "register")
+    status, op = call(api.base, "POST", "/v1/operators", key=account_key,
+                      body={"name": DECIDER, "role": "decider"})
+    assert status == 201, op
+    cid = case_id()
+    status, body = call(api.base, "POST", f"/v1/cases/{cid}/signal", key=op["api_key"], body={
+        "received_at": "2026-02-01T06:00:00Z", "channel": "other", "description": "synthetic",
+        "actor": ACTOR})
+    assert status == 201, body
+    status, body = call(api.base, "POST", f"/v1/cases/{cid}/awareness", key=op["api_key"], body={
+        "established_at": "2026-02-01T08:00:00Z", "assessment_started_at": "2026-02-01T06:00:00Z",
+        "assessment_completed_at": "2026-02-01T08:00:00Z",
+        "track": "actively_exploited_vulnerability", "reasoning": "synthetic reasoning",
+        "actor": ACTOR})
+    assert status == 201, body
