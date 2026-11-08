@@ -322,13 +322,6 @@ def test_pinning_a_private_key_file_is_refused_not_stored(pack):
     assert "PRIVATE" not in (pack.sup("trust", "list", "--ledger", "led.db", "--json").out)
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "JUDGEMENT CALL, low severity, for the company to accept or reject: `trust pin "
-    "--obtained-via` is documented as 'how you learned the fingerprint (not: from the feed)', "
-    "yet 'from the feed' is accepted. A fingerprint printed inside a feed proves nothing "
-    "(supplier/trust.py, point 3), so a pin whose recorded provenance is the feed is the exact "
-    "trust bootstrap the model rules out. The value is free text, so this can only ever be a "
-    "guard against the obvious mistake. Remove the marker if the company decides to accept it."))
 def test_a_pin_whose_stated_provenance_is_the_feed_itself_is_refused(pack):
     run = pack.sup("trust", "pin", "--ledger", "led.db", "--supplier-id", SUPPLIER_ID,
                    "--public-key", "s.pub", "--obtained-via", "from the feed", "--actor", "a")
@@ -630,7 +623,6 @@ def _listener():
     return recording_server(bind="0.0.0.0", reply=lambda s: (200, b"{}\n", {}))   # noqa: S104
 
 
-@pytest.mark.xfail(strict=True, reason=FETCH_POLICY_DEFECT + " [plain http, non-loopback]")
 def test_fetch_refuses_plain_http_to_a_non_loopback_host_and_sends_nothing(pack):
     with _listener() as rec:
         run = pack.sup("fetch", f"http://127.0.0.2:{rec.port}/v1/supplier/feed/x", "--out",
@@ -639,7 +631,6 @@ def test_fetch_refuses_plain_http_to_a_non_loopback_host_and_sends_nothing(pack)
     assert run.exit != OK and sent == [], "a plain-http request left for a non-loopback host"
 
 
-@pytest.mark.xfail(strict=True, reason=FETCH_POLICY_DEFECT + " [credentials in the URL]")
 def test_fetch_refuses_credentials_in_the_url_and_sends_nothing(pack):
     with _listener() as rec:
         run = pack.sup("fetch", f"http://user:secretpw@127.0.0.1:{rec.port}/v1/supplier/feed/x",
@@ -649,7 +640,6 @@ def test_fetch_refuses_credentials_in_the_url_and_sends_nothing(pack):
         "the URL's credentials were transmitted as an Authorization header")
 
 
-@pytest.mark.xfail(strict=True, reason=FETCH_POLICY_DEFECT + " [redirect to a disallowed URL]")
 def test_fetch_does_not_follow_a_redirect_to_a_url_the_policy_would_refuse(pack):
     with _listener() as target:
         def redirect(_):
