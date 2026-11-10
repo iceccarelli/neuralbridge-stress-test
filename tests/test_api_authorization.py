@@ -32,7 +32,7 @@ from support_cli import synthetic_manifest
 _OK, _WHY = api_importable()
 pytestmark = pytest.mark.skipif(not _OK, reason=f"BLOCKED: product API not runnable ({_WHY})")
 
-STATIC_PUBLIC = {"GET /", "GET /healthz", "GET /v1/plans"}
+STATIC_PUBLIC = {"GET /", "GET /healthz", "GET /livez", "GET /v1/plans"}
 #: Public catalogues a later product version added: static (the same answer for any caller) and
 #: carrying no account data. Optional so this oracle still runs against a product without them;
 #: `test_a_public_catalogue_is_the_same_for_every_caller_and_leaks_nothing` is what they must pass.
@@ -50,7 +50,10 @@ ACCOUNT_DATA = {
     "POST /v1/machinery/coverage", "POST /v1/machinery/passport",
     "POST /v1/fleet/declare", "POST /v1/watch/report", "POST /v1/supplier/trust/pin",
 }
-HONESTLY_UNAVAILABLE = {"GET /v1/ledger/attest/key"}      # 503: no signing key configured
+#: 503 on a server where the operator has not configured the thing: a signing key, or an
+#: intel observation store (the body names the missing setting and says nothing is established).
+HONESTLY_UNAVAILABLE = {"GET /v1/ledger/attest/key", "GET /v1/intel/candidates",
+                        "GET /v1/intel/history"}
 
 
 @pytest.fixture(scope="module")
@@ -108,6 +111,25 @@ def test_nothing_crashes_on_an_unconfigured_server(matrix):
     crashed = {n: s for n, r in matrix.items() for s in r.values()
                if s >= 500 and n not in HONESTLY_UNAVAILABLE}
     assert crashed == {}
+
+
+def test_the_liveness_probe_answers_anonymously_and_says_nothing_else(api):
+    assert call(api.base, "GET", "/livez") == (200, {"status": "alive"})
+
+
+ANONYMOUS_HEALTH_LEAKS = ("auth_mode", "ledger_records", "attestation_key")
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "FINDING (not yet filed upstream; product 0dd2517; re-verifies red-team item 4): GET /healthz "
+    "answers without a key and includes auth_mode, the operator ledger's record count and "
+    "whether a signing key is configured. Liveness has its own probe (/livez, which says "
+    "nothing); the detail belongs behind the operator key. Remove this marker when an anonymous "
+    "caller gets none of these."))
+def test_the_anonymous_health_surface_discloses_no_configuration_or_journal_metadata(api):
+    status, body = call(api.base, "GET", "/healthz")
+    assert status == 200
+    assert [k for k in ANONYMOUS_HEALTH_LEAKS if k in body] == []
 
 
 def test_unknown_routes_are_404_and_wrong_methods_are_405(api):

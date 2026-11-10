@@ -114,7 +114,16 @@ def test_no_purchasable_tier_is_offered_by_a_deployment_with_no_billing_configur
 
 # ----------------------------------------------------------------------- routes the site names
 ROUTE_RE = re.compile(
-    r"(?:\b(GET|POST|PUT|PATCH|DELETE)\s+)?(/v1/[A-Za-z0-9_\-/{}.*]*[A-Za-z0-9_}*])")
+    r"(?:\b(GET|POST|PUT|PATCH|DELETE)\s+)?(?<!/api)(/v1/[A-Za-z0-9_\-/{}.*]*[A-Za-z0-9_}*])")
+#: A route kept in the code but deliberately left out of OpenAPI, which the docs name so a
+#: reader knows what it answers. Each is exercised by a test below, not merely allowed.
+HIDDEN_DEPRECATED = {("GET", "/v1/checkout/complete")}
+
+
+def _without_ts_comments(text: str) -> str:
+    """Block and line comments in TypeScript are not public claims (they hold examples)."""
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    return re.sub(r"(?m)^\s*//.*$", "", text)
 #: The /ai control plane is a separate service with its own OpenAPI; its routes are not in the
 #: assurance document and are not audited here.
 SEPARATE_SERVICE = ("/v1/ai", "/v1/connections", "/v1/logs")
@@ -127,6 +136,8 @@ def _mentions():
     for path in _site_files(APP, PUBLIC / "llms.txt", DOCS):
         text = (path.read_text(encoding="utf-8", errors="replace")
                 .replace("&#123;", "{").replace("&#125;", "}"))
+        if path.suffix in (".ts", ".tsx"):
+            text = _without_ts_comments(text)
         for m in ROUTE_RE.finditer(text):
             if "${" in text[max(0, m.start() - 2): m.end() + 2]:
                 continue
@@ -147,6 +158,8 @@ def test_every_route_the_site_or_docs_name_exists_in_the_openapi_document(openap
 
     missing = {}
     for (method, route), where in _mentions().items():
+        if (method, route) in HIDDEN_DEPRECATED:
+            continue
         if route.startswith(SEPARATE_SERVICE) or "..." in route \
                 or route.count("{") != route.count("}"):
             continue                        # another service, an example, or a brace list
@@ -165,6 +178,13 @@ def test_every_route_the_site_or_docs_name_exists_in_the_openapi_document(openap
     assert missing == {}, "\n".join(f"{k}: {v[:3]}" for k, v in sorted(missing.items()))
 
 
+def test_the_documented_hidden_checkout_route_answers_410_and_hands_over_nothing(api):
+    """The docs name GET /v1/checkout/complete as deprecated: it must really be gone."""
+    status, body = call(api.base, "GET", "/v1/checkout/complete?session_id=cs_test_synthetic")
+    assert status == 410, (status, body)
+    assert "api_key" not in json.dumps(body)
+
+
 def test_the_published_openapi_json_is_the_one_the_app_generates(openapi):
     published = json.loads((PUBLIC / "openapi.json").read_text(encoding="utf-8"))
 
@@ -177,7 +197,20 @@ def test_the_published_openapi_json_is_the_one_the_app_generates(openapi):
 
 
 # ---------------------------------------------------------------------- links and anchors
+#: Next.js generates these URLs from files in app/ (the file convention), not from page.tsx.
+_METADATA_ROUTES = {
+    "/apple-icon": ("apple-icon.tsx", "apple-icon.ts", "apple-icon.png"),
+    "/icon.svg": ("icon.svg",), "/icon": ("icon.tsx", "icon.ts", "icon.png"),
+    "/opengraph-image": ("opengraph-image.tsx", "opengraph-image.ts", "opengraph-image.png"),
+    "/manifest.webmanifest": ("manifest.ts", "manifest.webmanifest", "manifest.json"),
+    "/sitemap.xml": ("sitemap.ts", "sitemap.xml"),
+    "/robots.txt": ("robots.ts", "robots.txt"),
+}
+
+
 def _route_exists(url_path: str) -> bool:
+    if url_path in _METADATA_ROUTES:
+        return any((APP / name).is_file() for name in _METADATA_ROUTES[url_path])
     parts = [p for p in url_path.strip("/").split("/") if p]
     if not parts:
         return (APP / "page.tsx").is_file()
@@ -192,7 +225,11 @@ def _route_exists(url_path: str) -> bool:
         here = dyn[0]
         if here.name.startswith("[[..."):          # optional catch-all: any depth is routed
             return (here / "page.tsx").is_file()
-    if (here / "page.tsx").is_file() or (here / "route.ts").is_file() or here == APP:
+    handler = next((h for h in (here / "route.ts", here / "route.tsx") if h.is_file()), None)
+    if handler is not None and here.name.startswith("[") and parts:
+        # a dynamic route handler with a closed set of names: the name must be in the source
+        return parts[-1] in handler.read_text(encoding="utf-8", errors="replace")
+    if (here / "page.tsx").is_file() or handler is not None or here == APP:
         return True
     return any((d / "page.tsx").is_file() for d in here.glob("[[][[]...*[]][]]"))
 
@@ -215,6 +252,9 @@ def _all_ids() -> set[str]:
         text = path.read_text(encoding="utf-8", errors="replace")
         ids.update(re.findall(r"""\bid=["']([A-Za-z0-9_-]+)["']""", text))
         ids.update(re.findall(r"""\bid:\s*["']([A-Za-z0-9_-]+)["']""", text))
+        if "id={`service-${service}`}" in text:
+            from assurance.capabilities import CAPABILITIES  # the list the page maps over
+            ids.update(f"service-{c.service}" for c in CAPABILITIES)
     return ids
 
 
@@ -309,7 +349,7 @@ def test_every_command_the_site_shows_in_code_exists_in_the_real_cli():
 def _mcp_page_tools():
     text = (APP / "connectors" / "mcp" / "page.tsx").read_text(encoding="utf-8")
     return [dict(name=n, route=r, tier=t) for n, r, t in re.findall(
-        r"\{ name: '([a-z_]+)', route: '([A-Z]+ [^']+)', tier: '([a-z]+)'", text)]
+        r"\{ name: '([a-z0-9_]+)', route: '([A-Z]+ [^']+)', tier: '([a-z]+)'", text)]
 
 
 @pytest.mark.skipif(not mcp_importable()[0], reason="BLOCKED: product MCP server not runnable")
@@ -335,7 +375,15 @@ def test_the_route_the_mcp_page_gives_each_tool_is_the_route_the_tool_really_cal
     assert wrong == {}
 
 
-def test_the_tier_the_mcp_page_gives_each_tool_is_the_tier_that_unlocks_its_route(api):
+#: FINDING (not yet filed upstream; product 0dd2517): the MCP page (app/connectors/mcp/page.tsx)
+#: and app/lib/routes.ts list these two tools/routes as Register tier, but the API answers 402
+#: ``plan_does_not_include_machine_verification`` to a Register account: it opens at Cell. The
+#: sweep below excludes exactly these pairs; the strict xfail after it proves they are still
+#: wrong, and goes red when the site or the entitlement is corrected.
+TIER_DRIFT = {("machinery_export", "register"), ("machinery_passport_check_ledger", "register")}
+
+
+def _tier_mismatches(api):
     keys = {t: api.make_account(f"site-{t}@example.invalid", t)
             for t in ("free", "register", "cell")}
     rank = {"free": 0, "register": 1, "cell": 2}
@@ -350,7 +398,21 @@ def test_the_tier_the_mcp_page_gives_each_tool_is_the_tier_that_unlocks_its_rout
             should = rank[tier] >= rank[tool["tier"]]
             if open_ != should:
                 wrong[(tool["name"], tier)] = (tool["tier"], status)
-    assert wrong == {}
+    return wrong
+
+
+def test_the_tier_the_mcp_page_gives_each_tool_is_the_tier_that_unlocks_its_route(api):
+    wrong = _tier_mismatches(api)
+    assert {k: v for k, v in wrong.items() if k not in TIER_DRIFT} == {}
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "FINDING (not yet filed upstream; product 0dd2517): the site lists machinery_export and "
+    "machinery_passport_check_ledger as Register tier; the API gives 402 "
+    "plan_does_not_include_machine_verification to a Register account. Fix the listing or the "
+    "entitlement, then delete TIER_DRIFT and this marker."))
+def test_the_two_machinery_tools_are_available_on_the_tier_the_site_lists(api):
+    assert not (set(_tier_mismatches(api)) & TIER_DRIFT)
 
 
 def test_the_mcp_page_says_how_many_tools_it_has_and_the_count_is_computed_not_typed():

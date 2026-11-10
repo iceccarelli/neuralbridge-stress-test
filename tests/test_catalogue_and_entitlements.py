@@ -32,7 +32,7 @@ _ok, _why = api_importable()
 pytestmark = pytest.mark.skipif(not _ok, reason=f"BLOCKED: product API not runnable ({_why})")
 
 #: Routes the catalogue deliberately does not list: liveness and the service root.
-UNLISTED_ON_PURPOSE = {"GET /", "GET /healthz"}
+UNLISTED_ON_PURPOSE = {"GET /", "GET /healthz", "GET /livez"}
 
 #: gate flag in the catalogue -> the public limit that states it, per /v1/plans.
 FLAG_TO_PUBLIC_LIMIT = {
@@ -79,7 +79,9 @@ def test_the_catalogue_counts_agree_with_its_own_rows(catalogue):
         tally: dict[str, int] = {}
         for row in catalogue["capabilities"]:
             tally[row[surface]["status"]] = tally.get(row[surface]["status"], 0) + 1
-        assert tally == catalogue["counts"][surface], surface
+        # a status with no rows may be reported as 0; absent and zero are the same count here
+        stated = {k: v for k, v in catalogue["counts"][surface].items() if v}
+        assert tally == stated, surface
 
 
 def test_every_capability_id_is_unique_and_each_row_names_a_reason_when_not_present(catalogue):

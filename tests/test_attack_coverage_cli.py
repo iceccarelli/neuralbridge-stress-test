@@ -66,10 +66,19 @@ def is_cover(run, report):
     return str(report.get("verdict", "")).startswith("covered") or run.exit in (0, 3)
 
 
-def _verify(step, ledger):
+def _config_hash(root):
+    """The configuration hash a filer would state: the product's own hash of the manifest."""
+    from assurance.machinery.manifest import SafetyManifest
+    return SafetyManifest.from_json(root / "m.json").configuration_hash()
+
+
+def _verify(step, ledger, root=None, *, bound=True):
+    """Seal a verification. The product counts it as current only if it states the
+    configuration it ran against (``--configuration-hash``); ``bound=False`` omits it."""
+    extra = ("--configuration-hash", _config_hash(root)) if bound else ()
     r = step("machine", "verify", "--envelope", str(FIX / "envelope.json"), "--trace",
              str(FIX / "trace.json"), "--actor", "synthetic.tech", "--ledger", str(ledger),
-             "--subject", KEY)
+             "--subject", KEY, *extra)
     # the example trace violates other checks, so a non-zero exit is expected; what matters
     # is that the verification was sealed
     assert r.exit in (0, 1), r.err[-300:]
@@ -84,9 +93,19 @@ def test_a_function_with_no_verification_is_not_covered(world):
     assert j["functions"][0]["coverage"] == "never_verified"
 
 
+def test_a_verification_without_a_configuration_binding_is_never_cover(world):
+    """Missing is not success: the pass does not say which configuration it ran on."""
+    root, ledger, step, coverage = world
+    _verify(step, ledger, root, bound=False)
+    step("machinery", "record-manifest", str(root / "m.json"), "--ledger", str(ledger))
+    r, j = coverage()
+    assert not is_cover(r, j)
+    assert j["functions"][0]["coverage"] == "stale"
+
+
 def test_a_later_intervention_makes_the_function_stale(world):
     root, ledger, step, coverage = world
-    _verify(step, ledger)
+    _verify(step, ledger, root)
     step("machinery", "record-manifest", str(root / "m.json"), "--ledger", str(ledger))
     r, j = coverage()
     assert is_cover(r, j) and j["functions"][0]["coverage"] == "current"
@@ -98,7 +117,7 @@ def test_a_later_intervention_makes_the_function_stale(world):
 
 def test_deleting_the_invalidating_intervention_does_not_restore_cover(world):
     root, ledger, step, coverage = world
-    _verify(step, ledger)
+    _verify(step, ledger, root)
     step("machinery", "record-manifest", str(root / "m.json"), "--ledger", str(ledger))
     step("machinery", "record-change", str(root / "iv.json"), "--ledger", str(ledger))
     # a later record, so the deletion breaks the chain in the middle rather than at the tail

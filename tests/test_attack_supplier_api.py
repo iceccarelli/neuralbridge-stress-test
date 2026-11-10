@@ -302,12 +302,6 @@ def test_the_public_feed_endpoint_reads_only_feed_files(api, ident):
     assert "root:" not in json.dumps(body) and "sqlite" not in json.dumps(body).lower()
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "PRODUCT DEFECT (anonymous, no key): GET /v1/supplier/feed/{id} with an id long enough that "
-    "'{id}.jsonl' exceeds the filesystem's name limit (600 characters tested; the limit is 255) "
-    "answers a bare 500 Internal Server Error. The evaluate routes already validate "
-    "hosted_feed_id against ^[A-Za-z0-9_.-]{1,128}$; the public GET does not. Remove this marker "
-    "when it answers 404/422."))
 @pytest.mark.parametrize("length", [250, 300, 600, 5000])
 def test_an_overlong_feed_id_is_a_4xx_not_a_server_error(api, length):
     status, _ = call(api.base, "GET", "/v1/supplier/feed/" + "a" * length)

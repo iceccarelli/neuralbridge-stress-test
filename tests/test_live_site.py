@@ -82,7 +82,7 @@ pytestmark = pytest.mark.skipif(
 
 #: The pages a visitor is sent to from the home page and header; each must be a real page.
 CRITICAL = ["/", "/developers", "/applications", "/cli", "/connectors/mcp", "/connectors/cursor",
-            "/console", "/verify", "/status", "/security", "/privacy", "/contact", "/ai",
+            "/console", "/verify", "/security", "/privacy", "/contact", "/ai",
             "/investigate", "/assurance", "/docs/getting-started", "/docs/assurance/attest",
             "/docs/assurance/fleet", "/docs/assurance/kit",
             "/docs/assurance/machine", "/docs/assurance/machinery", "/docs/assurance/watch",
@@ -134,11 +134,6 @@ def test_error_pages_leak_no_stack_trace_or_server_path():
 KNOWN_DEAD_PAGES = {"/docs", "/roadmap", "/docs/assurance/deploy"}
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "SITE DEFECT: the home page, header, agent.json and (for /roadmap) the sitemap and llms.txt "
-    "send visitors and agents to /docs, /roadmap and /docs/assurance/deploy, and all three "
-    "answer 404 on the live site. /roadmap is the page llms.txt names as the honest 'shipped "
-    "versus planned'. Remove this marker when all three resolve."))
 def test_every_page_the_home_page_links_to_resolves():
     dead = {p: get(p)["status"] for p in sorted(_internal_links(_text("/"))) if
             get(p)["status"] != 200}
@@ -150,10 +145,6 @@ def test_the_only_dead_links_on_the_home_page_are_the_ones_already_reported():
     assert dead <= KNOWN_DEAD_PAGES, f"a NEW dead link on the home page: {dead}"
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "SITE DEFECT: /roadmap is in the sitemap and answers 404 (ROADMAP.md was removed from the "
-    "repository but the page and its sitemap entry remain). Remove when the sitemap lists only "
-    "pages that exist."))
 def test_every_url_in_the_sitemap_answers_200():
     bad = {u: get(u.replace(BASE, ""))["status"] for u in _sitemap_urls()
            if get(u.replace(BASE, ""))["status"] != 200}
@@ -201,9 +192,17 @@ def test_which_commit_is_deployed_is_not_stated_by_the_site_so_drift_cannot_be_r
     assert not any(k in headers for k in ("x-commit", "x-git-sha", "x-build-id", "x-app-version"))
 
 
+def test_the_retired_status_page_permanently_redirects_to_the_developer_page():
+    """The product retired /status on purpose (next.config.js): a visitor with an old link must
+    land on a real page, not a 404, and the redirect must be permanent."""
+    got = get("/status")
+    assert got["status"] == 308, got["status"]
+    assert got["headers"].get("location") == "/developers"
+
+
 # ---------------------------------------------------------------------- commercial state
 def test_no_page_offers_a_stripe_checkout_link_the_site_says_checkout_is_not_live():
-    for path in ("/", "/developers", "/applications", "/console", "/status", "/contact",
+    for path in ("/", "/developers", "/applications", "/console", "/contact",
                  "/connectors/mcp", "/docs/getting-started"):
         html = _text(path)
         assert "checkout.stripe.com" not in html and "buy.stripe.com" not in html, path
@@ -247,11 +246,6 @@ def test_https_is_enforced_with_a_long_hsts_lifetime(path):
     assert m and int(m.group(1)) >= 31_536_000, hsts
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "SITE DEFECT: neither the live site nor the repository (next.config.js, vercel.json) sets "
-    "a Content-Security-Policy / frame-ancestors, X-Content-Type-Options or Referrer-Policy, "
-    "including on /console (where a visitor pastes an API key) and /verify (where a visitor "
-    "supplies an evidence file). Remove this marker when these headers are served."))
 @pytest.mark.parametrize("path", ["/console", "/verify"])
 def test_a_page_that_takes_a_key_or_a_file_is_not_frameable_and_not_sniffable(path):
     h = get(path)["headers"]

@@ -298,14 +298,6 @@ def test_an_advisory_matching_no_component_in_a_complete_fleet_is_clear_and_exit
     assert report["machines_affected"] == [] and report["clear_is_complete"] is True
 
 
-EMPTY_FLEET_DEFECT = (
-    "PRODUCT DEFECT, PARTLY FIXED (neuralbridge#83, retested against 851fae1): with no machine "
-    "enrolled the CLI now exits 3 and clear_is_complete is false (both asserted by passing "
-    "tests), but `verdict` is still 'clear' and the human headline still reads 'CLEAR — no "
-    "machine in this fleet matches this advisory'. Remove this marker when the verdict and the "
-    "headline stop saying clear for a fleet nothing was assessed in.")
-
-
 def _empty_fleet_report(tmp_path):
     """A ledger that exists and holds evidence, but no machine."""
     run = assurance("art14", "--ledger", "has-no-machines.db", "signal", "C1", "--by",
@@ -324,7 +316,6 @@ def test_an_empty_fleet_is_not_a_clean_exit_and_not_a_complete_clear(tmp_path):
     assert report["clear_is_complete"] is False
 
 
-@pytest.mark.xfail(strict=True, reason=EMPTY_FLEET_DEFECT + " [CLI]")
 def test_an_empty_fleet_is_never_reported_clear(tmp_path):
     _, report = _empty_fleet_report(tmp_path)
     assert report["verdict"] != "clear"
@@ -458,7 +449,6 @@ def test_an_account_with_no_machines_is_not_told_its_clear_is_complete(api):
 
 
 @needs_api
-@pytest.mark.xfail(strict=True, reason=EMPTY_FLEET_DEFECT + " [API]")
 def test_an_account_with_no_machines_is_not_told_its_fleet_is_clear(api):
     empty = api.make_account("fleet-empty@example.invalid", "cell")
     status, body = call(api.base, "POST", "/v1/fleet/advisory", key=empty, body={"advisory": A1})

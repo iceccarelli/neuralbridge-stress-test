@@ -77,13 +77,11 @@ def test_control_cli_one_edited_field_moves_the_deadline_and_only_verify_notices
     work, ledger = cli_ledger
     assert ORIGINAL_DUE in _case(work, ledger).out
     _edit_awareness_date(ledger)
-    shown = _case(work, ledger)
-    assert SHIFTED_DUE in shown.out and ORIGINAL_DUE not in shown.out      # the attack works
+    # the attack no longer reads back as fact (see the read test below); the verifier notices
     verdict = assurance("art14", "--ledger", str(ledger), "verify", cwd=work)
     assert verdict.exit == 1 and "edited" in (verdict.out + verdict.err)   # and is detectable
 
 
-@pytest.mark.xfail(strict=True, reason=DEFECT + " [CLI read]")
 def test_cli_a_case_read_from_an_edited_ledger_is_refused_or_visibly_flagged(cli_ledger):
     work, ledger = cli_ledger
     _edit_awareness_date(ledger)
@@ -94,7 +92,6 @@ def test_cli_a_case_read_from_an_edited_ledger_is_refused_or_visibly_flagged(cli
         "the edited deadline was printed with exit 0 and no integrity warning:\n" + shown.out)
 
 
-@pytest.mark.xfail(strict=True, reason=DEFECT + " [CLI write]")
 def test_cli_a_new_record_is_not_appended_to_a_chain_that_does_not_verify(cli_ledger):
     work, ledger = cli_ledger
     _edit_awareness_date(ledger)
@@ -107,10 +104,11 @@ def test_cli_a_new_record_is_not_appended_to_a_chain_that_does_not_verify(cli_le
 # --------------------------------------------------------------------------------- API
 _ok, _why = api_importable()
 SIGNAL = {"received_at": "2026-10-01T08:00:00Z", "channel": "other", "description": "synthetic",
-          "actor": {"identifier": "t", "role": "analyst"}}
+          "actor": {"identifier": "Alice Decider", "role": "analyst"}}
 AWARE = {"established_at": ORIGINAL_AWARE, "assessment_started_at": "2026-10-01T08:00:00Z",
          "assessment_completed_at": ORIGINAL_AWARE, "track": "actively_exploited_vulnerability",
-         "reasoning": "synthetic reasoning", "actor": {"identifier": "t", "role": "analyst"}}
+         "reasoning": "synthetic reasoning",
+         "actor": {"identifier": "Alice Decider", "role": "analyst"}}
 
 
 @pytest.fixture()
@@ -118,7 +116,12 @@ def api_tenant():
     if not _ok:
         pytest.skip(f"BLOCKED: product API not runnable ({_why})")
     with live_api() as api:
-        key = api.make_account("t@example.invalid")
+        account_key = api.make_account("t@example.invalid", "cell")
+        # awareness is a named human's decision: an individual 'decider' operator makes it
+        status, op = call(api.base, "POST", "/v1/operators", key=account_key,
+                          body={"name": "Alice Decider", "role": "decider"})
+        assert status == 201, op
+        key = op["api_key"]
         assert call(api.base, "POST", "/v1/cases/C1/signal", key=key, body=SIGNAL)[0] == 201
         assert call(api.base, "POST", "/v1/cases/C1/awareness", key=key, body=AWARE)[0] == 201
         (ledger,) = list((api.state / "tenants").glob("*.db"))
@@ -129,17 +132,20 @@ def _api_case(api, key):
     return call(api.base, "GET", "/v1/cases/C1", key=key)
 
 
-def test_control_api_one_edited_field_moves_the_deadline_and_verify_notices(api_tenant):
+def test_control_api_one_edited_field_is_refused_not_served_and_verify_notices(api_tenant):
     api, key, ledger = api_tenant
     assert ORIGINAL_DUE in str(_api_case(api, key)[1])
     _edit_awareness_date(ledger)
     status, body = _api_case(api, key)
-    assert status == 200 and SHIFTED_DUE in str(body)                     # the attack works
+    # refused with a structured integrity error and none of the data. (It is an HTTP 500: a
+    # server-side storage-integrity fault. Whether that should be a 4xx is a design judgement
+    # this suite does not decide; what matters is that nothing edited is served as fact.)
+    assert status != 200 and SHIFTED_DUE not in str(body) and ORIGINAL_DUE not in str(body)
+    assert body["detail"]["error"] == "ledger_integrity"
     status, verdict = call(api.base, "GET", "/v1/ledger/verify", key=key)
     assert status == 200 and verdict["verified"] is False                 # and is detectable
 
 
-@pytest.mark.xfail(strict=True, reason=DEFECT + " [API read]")
 def test_api_a_case_read_from_an_edited_ledger_is_refused_or_visibly_flagged(api_tenant):
     api, key, ledger = api_tenant
     _edit_awareness_date(ledger)
@@ -152,7 +158,6 @@ def test_api_a_case_read_from_an_edited_ledger_is_refused_or_visibly_flagged(api
         "had just reported the chain broken")
 
 
-@pytest.mark.xfail(strict=True, reason=DEFECT + " [API write]")
 def test_api_a_new_record_is_not_appended_after_the_service_reported_the_chain_broken(api_tenant):
     api, key, ledger = api_tenant
     _edit_awareness_date(ledger)

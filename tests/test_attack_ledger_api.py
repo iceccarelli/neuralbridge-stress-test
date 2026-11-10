@@ -40,12 +40,14 @@ from conftest import PRODUCT_SRC
 _ok, _why = api_importable()
 pytestmark = pytest.mark.skipif(not _ok, reason=f"BLOCKED: product API not runnable ({_why})")
 
+DECIDER = "Alice Decider"
+ACTOR = {"identifier": DECIDER, "role": "analyst"}
 SIGNAL = {"received_at": "2026-10-01T08:00:00Z", "channel": "other",
-          "description": "synthetic signal", "actor": {"identifier": "t", "role": "analyst"}}
+          "description": "synthetic signal", "actor": ACTOR}
 AWARE = {"established_at": "2026-10-01T09:00:00Z", "assessment_started_at": "2026-10-01T08:00:00Z",
          "assessment_completed_at": "2026-10-01T09:00:00Z",
          "track": "actively_exploited_vulnerability", "reasoning": "synthetic reasoning",
-         "actor": {"identifier": "t", "role": "analyst"}}
+         "actor": ACTOR}
 
 
 @pytest.fixture(scope="module")
@@ -71,6 +73,15 @@ class Tenant:
         before = set((api.state / "tenants").glob("*.db"))
         self.key = api.make_account(f"{label}@example.invalid", tier)
         self.email = f"{label}@example.invalid"
+        # Case decisions are a named human's: the product refuses an account-level key for
+        # them (403 operator_required). Case writes use the account's decider operator's key;
+        # ledger, export and attestation calls keep the account key.
+        self.decider_key = self.key
+        if tier != "free":
+            status, op = call(api.base, "POST", "/v1/operators", key=self.key,
+                              body={"name": DECIDER, "role": "decider"})
+            assert status == 201, op
+            self.decider_key = op["api_key"]
         if tier != "free":
             assert self.post("SEED", "signal", SIGNAL)[0] == 201
             new = set((api.state / "tenants").glob("*.db")) - before
@@ -82,7 +93,8 @@ class Tenant:
         return call(self.api.base, "GET", path, key=self.key)
 
     def post(self, case: str, verb: str, body):
-        return call(self.api.base, "POST", f"/v1/cases/{case}/{verb}", key=self.key, body=body)
+        return call(self.api.base, "POST", f"/v1/cases/{case}/{verb}", key=self.decider_key,
+                    body=body)
 
     def head(self) -> dict:
         status, body = self.get("/v1/ledger/verify")
@@ -405,24 +417,11 @@ def _bodies():
     }
 
 
-DEFECT_INPUTS = {
-    "wrong_types": "an integer is accepted as a timestamp (12345 became 1970-01-01T03:25:45Z "
-                   "in a legal-deadline record; the unit is a guess)",
-    "year_9999_offset": "a timestamp that overflows on conversion to UTC is an unhandled 500",
-    "year_0001_offset": "a timestamp that underflows on conversion to UTC is an unhandled 500",
-}
-
-
 def _matrix_params():
-    for name in sorted(_bodies()):
-        if name in DEFECT_INPUTS:
-            yield pytest.param(name, marks=pytest.mark.xfail(
-                strict=True, reason=f"PRODUCT DEFECT: {DEFECT_INPUTS[name]}. Remove when fixed."))
-        else:
-            yield pytest.param(name)
+    return sorted(_bodies())
 
 
-@pytest.mark.parametrize("name", list(_matrix_params()))
+@pytest.mark.parametrize("name", _matrix_params())
 def test_refused_input_is_4xx_writes_nothing_and_the_server_stays_healthy(api, tenant, name):
     raw = _bodies()[name]
     before = tenant.length()
@@ -568,11 +567,6 @@ HOSTILE_AWARENESS = {**AWARE, "established_at": "9999-12-31T23:59:59Z",
                      "assessment_completed_at": "9999-12-31T23:59:59Z"}
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "PRODUCT DEFECT: POST /v1/cases/{id}/awareness with established_at 9999-12-31T23:59:59Z "
-    "answers a bare 500 but the record IS appended; the case then 500s on read and cannot be "
-    "corrected (409). Remove this marker when a deadline that cannot be computed is a 4xx and "
-    "writes nothing."))
 def test_an_awareness_whose_deadlines_cannot_be_computed_is_refused_and_writes_nothing(tenant):
     assert tenant.post("HX", "signal", SIGNAL)[0] == 201
     before = tenant.length()
@@ -581,10 +575,6 @@ def test_an_awareness_whose_deadlines_cannot_be_computed_is_refused_and_writes_n
     assert tenant.length() == before, "the request was refused but a record was appended"
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "PRODUCT DEFECT: after the request above, GET /v1/register and /v1/register/breaches (the "
-    "readiness view across EVERY case of the account) answer 500, so one bad case blinds the "
-    "whole register. Remove this marker when the register survives one unreadable case."))
 def test_one_unreadable_case_does_not_blind_the_whole_register(tenant):
     assert tenant.post("OK1", "signal", SIGNAL)[0] == 201
     assert tenant.post("OK1", "awareness", AWARE)[0] == 201

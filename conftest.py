@@ -46,3 +46,30 @@ def pytest_terminal_summary(terminalreporter):
         terminalreporter.write_line(
             f"BLOCKED: {len(PRODUCT_TESTS)} product-level suites were not collected; "
             "they did not run and prove nothing.", yellow=True)
+
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _private_directories(monkeypatch):
+    """Directories a test creates are owner-only, whatever the machine's umask or ACLs.
+
+    The product refuses a private key whose directory is writable by group or other (and
+    treats sticky shared directories such as /tmp as unacceptable). Codespaces default to
+    umask 0002 and a default ACL on temp directories, so a plain ``mkdir`` there is
+    group-writable and every key-using test errors before it tests anything. Making the
+    harness explicit keeps the product's control intact. Tests that need a loose directory
+    to attack the control still ``chmod`` it themselves afterwards, which this does not
+    prevent.
+    """
+    real_mkdir = Path.mkdir
+
+    def mkdir(self, mode=0o777, parents=False, exist_ok=False):
+        existed = self.exists()
+        real_mkdir(self, mode=0o700 if mode == 0o777 else mode, parents=parents,
+                   exist_ok=exist_ok)
+        if not existed:
+            os.chmod(self, 0o700 if mode == 0o777 else mode)
+
+    monkeypatch.setattr(Path, "mkdir", mkdir)

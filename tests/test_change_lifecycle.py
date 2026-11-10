@@ -58,7 +58,15 @@ def manifest(machine=MACHINE):
     )
 
 
+#: The configuration a verification states it was run against. The product refuses to count a
+#: pass as current unless it is bound to the machine's configuration (an unbound one is stale,
+#: a bound-to-another one is stale), so the helper binds by default and tests that want
+#: otherwise pass ``configuration_hash=""`` or another value.
+CONFIG = manifest().configuration_hash()
+
+
 def verification(seq, at, verified=("stop-time", "zone-radius"), **kw):
+    kw.setdefault("configuration_hash", CONFIG)
     return VerificationRecord(
         content_hash=f"{seq:064x}", effective_at=at, ledger_seq=seq, product="p",
         product_version="1", verdict="pass", tier="validated",
@@ -270,3 +278,16 @@ def test_input_order_does_not_change_the_lifecycle_answer():
     a = states(v, [ch])["SF-STOP"].coverage
     b = states(list(reversed(v)), [ch])["SF-STOP"].coverage
     assert a is b is Coverage.CURRENT
+
+
+def test_a_verification_with_no_configuration_binding_is_never_current():
+    """Missing is not success: a pass that does not say which configuration it ran on cannot
+    read as covering this one."""
+    got = states([verification(1, T0 + timedelta(days=1), configuration_hash="")], [])
+    assert all(f.coverage is not Coverage.CURRENT for f in got.values())
+    assert all(f.coverage is Coverage.STALE for f in got.values())
+
+
+def test_a_verification_bound_to_another_configuration_is_not_current_for_this_one():
+    got = states([verification(1, T0 + timedelta(days=1), configuration_hash="d" * 64)], [])
+    assert all(f.coverage is not Coverage.CURRENT for f in got.values())

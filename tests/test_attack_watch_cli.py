@@ -219,7 +219,6 @@ GAP_DEFECT = (
     "lose an item to a transient read failure.")
 
 
-@pytest.mark.xfail(strict=True, reason=GAP_DEFECT + " [during the gap]")
 def test_during_a_gap_an_advisory_against_the_missing_item_is_not_cleared(cell):
     assert cell.run().exit == CHANGED
     (cell.root / "controller-fw.bin").unlink()
@@ -230,7 +229,6 @@ def test_during_a_gap_an_advisory_against_the_missing_item_is_not_cleared(cell):
         "an incomplete look of the machine was read as 'the advisory does not apply'")
 
 
-@pytest.mark.xfail(strict=True, reason=GAP_DEFECT + " [after the export returns]")
 def test_after_the_export_returns_the_fleet_view_has_the_item_again(cell):
     assert cell.run().exit == CHANGED
     fw = cell.root / "controller-fw.bin"
@@ -304,13 +302,6 @@ def test_run_and_status_open_no_socket(cell):
 
 
 # ---------------------------------------------------------------------------- staleness
-@pytest.mark.xfail(strict=True, reason=(
-    "PRODUCT DEFECT: `watch status` replays the last run's stored verdict and never compares it "
-    "with the clock. The config says max_age_hours exists so that 'a watch that stopped running "
-    "is not mistaken for a fleet that stopped changing'; but staleness is only computed inside a "
-    "`run`, and a watch that has stopped never runs. A monitor polling `status` (or a person) "
-    "reads 'quiet' from a run made weeks ago. Remove this marker when `status` reports a run "
-    "older than max_age_hours as degraded (exit 2) with the age."))
 def test_status_of_a_watch_that_has_stopped_does_not_read_quiet(tmp_path):
     cell = Cell(tmp_path, max_age_hours=0.0002)                       # 0.72 seconds
     assert cell.run().exit == CHANGED
