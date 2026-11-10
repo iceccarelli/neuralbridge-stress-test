@@ -377,10 +377,6 @@ class _Attacker(BaseHTTPRequestHandler):
         pass
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "SITE DEFECT neuralbridge#85, confirmed in the build from source: /console (the page where a "
-    "visitor pastes an API key) is framed by an unrelated origin without any frame protection. "
-    "Remove this marker when X-Frame-Options or a CSP frame-ancestors is served."))
 def test_the_key_entry_page_cannot_be_framed_by_another_origin(browser, stack):
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Attacker)
     threading.Thread(target=server.serve_forever, daemon=True).start()
