@@ -18,8 +18,9 @@ Independent expectations, from the brief and plain logic:
 * a refusal (401 no key, 402 not entitled) is shown as the API's real answer, not as a success;
 * text that an outsider controls (a case description) is shown as text and never runs;
 * a file handed to the verifier is judged: an edited bundle does not read as verified;
-* a page that takes a key can be framed by another origin today (neuralbridge#85); recorded as a
-  strict xfail that flips when frame protection is served.
+* the page that takes a key cannot be framed by another origin (neuralbridge#85, resolved
+  2026-11-12 once the site served frame protection; the test also proves the harness would see a
+  framed key input if framing were allowed).
 """
 from __future__ import annotations
 
@@ -81,14 +82,55 @@ _blocked = (None if (BUILD / ".next").is_dir() and _playwright and CHROME and _o
 pytestmark = pytest.mark.skipif(_blocked is not None, reason=_blocked or "")
 
 
+def _port_is_serving(port: int) -> bool:
+    import socket
+
+    for family, host in ((socket.AF_INET, "127.0.0.1"), (socket.AF_INET6, "::1")):
+        try:
+            with socket.socket(family, socket.SOCK_STREAM) as s:
+                s.settimeout(0.5)
+                s.connect((host, port))
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def _stop_site(site: subprocess.Popen) -> None:
+    """Stop the whole process group. ``npx`` starts ``next-server`` as a child, and ending only
+    the wrapper leaves that child serving the OLD build on the port (found 2026-11-12: a later run
+    then tested a stale server and a mutated build still passed)."""
+    import os
+    import signal
+
+    for sig, wait in ((signal.SIGTERM, 15), (signal.SIGKILL, 5)):
+        try:
+            os.killpg(site.pid, sig)
+        except ProcessLookupError:
+            return
+        try:
+            site.wait(timeout=wait)
+            return
+        except subprocess.TimeoutExpired:
+            continue
+
+
 @pytest.fixture(scope="module")
 def stack():
+    import time
+
+    if _port_is_serving(3000):
+        raise RuntimeError(
+            "port 3000 is already serving: this run would test a leftover site, not the build in "
+            f"{BUILD}. Stop that process and rerun.")
     site = subprocess.Popen(["npx", "next", "start", "-p", "3000"], cwd=BUILD,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            start_new_session=True)
     try:
         with live_api(port=API_PORT) as api:
-            import time
             for _ in range(60):
+                if site.poll() is not None:
+                    raise RuntimeError(f"`next start` exited with {site.returncode} before serving")
                 try:
                     if call(SITE, "GET", "/")[0] == 200:
                         break
@@ -99,8 +141,7 @@ def stack():
                 raise RuntimeError("the site did not start")
             yield api
     finally:
-        site.terminate()
-        site.wait(timeout=15)
+        _stop_site(site)
 
 
 @pytest.fixture(scope="module")
@@ -364,9 +405,18 @@ def test_a_non_evidence_file_is_refused_without_a_stack_trace(pg, tmp_path):
 
 # ------------------------------------------------------------------------ framing (xfail)
 class _Attacker(BaseHTTPRequestHandler):
+    """``/`` frames the product's key-entry page from this (foreign) origin. ``/control`` frames
+    ``/inner``, a page of this same origin that holds a password input and sends no frame
+    protection: it proves the harness can see a framed key input when framing is allowed."""
+
     def do_GET(self):                                          # noqa: N802
-        body = (f'<iframe id="victim" src="{SITE}/console" width="800" height="600"></iframe>'
-                ).encode()
+        if self.path == "/inner":
+            body = b'<input type="password" id="k">'
+        elif self.path == "/control":
+            body = b'<iframe id="control" src="/inner" width="800" height="600"></iframe>'
+        else:
+            body = (f'<iframe id="victim" src="{SITE}/console" width="800" height="600"></iframe>'
+                    ).encode()
         self.send_response(200)
         self.send_header("content-type", "text/html")
         self.send_header("content-length", str(len(body)))
@@ -377,20 +427,40 @@ class _Attacker(BaseHTTPRequestHandler):
         pass
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "SITE DEFECT neuralbridge#85, confirmed in the build from source: /console (the page where a "
-    "visitor pastes an API key) is framed by an unrelated origin without any frame protection. "
-    "Remove this marker when X-Frame-Options or a CSP frame-ancestors is served."))
-def test_the_key_entry_page_cannot_be_framed_by_another_origin(browser, stack):
+def _framed_key_input(browser, path: str, frame_prefix: str) -> bool:
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Attacker)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     ctx = browser.new_context()
     try:
         page = ctx.new_page()
-        page.goto(f"http://127.0.0.1:{server.server_address[1]}/", wait_until="networkidle")
-        frame = next((f for f in page.frames if f.url.startswith(SITE)), None)
-        framed = frame is not None and frame.locator("input[type=password]").count() > 0
-        assert not framed, "the key-entry page rendered inside another origin's frame"
+        base = f"http://127.0.0.1:{server.server_address[1]}"
+        page.goto(base + path, wait_until="networkidle")
+        prefix = frame_prefix.format(base=base)
+        frame = next((f for f in page.frames if f.url.startswith(prefix)), None)
+        return frame is not None and frame.locator("input[type=password]").count() > 0
     finally:
         ctx.close()
         server.shutdown()
+
+
+def test_the_key_entry_page_cannot_be_framed_by_another_origin(browser, stack):
+    """RESOLVED 2026-11-12 (was a strict xfail, neuralbridge#85, found in the build from source).
+
+    The product now serves ``X-Frame-Options: DENY`` and ``Content-Security-Policy:
+    frame-ancestors 'none'`` on every path. The marker was retired only after the browser tier
+    was run against a build of product 2b41ddb and reported XPASS(strict). Three independent
+    parts, so a pass cannot be an accident of a frame that merely failed to load:
+    the served page carries the protection; a foreign origin's frame does not render the
+    key input; and the same harness DOES see a framed key input when nothing forbids it.
+    """
+    import urllib.request
+
+    with urllib.request.urlopen(f"{SITE}/console", timeout=30) as resp:
+        headers = {k.lower(): v for k, v in resp.headers.items()}
+    xfo = headers.get("x-frame-options", "").strip().upper()
+    csp = headers.get("content-security-policy", "").lower()
+    assert xfo in {"DENY", "SAMEORIGIN"} or "frame-ancestors" in csp, headers
+    assert not _framed_key_input(browser, "/", SITE), (
+        "the key-entry page rendered inside another origin's frame")
+    assert _framed_key_input(browser, "/control", "{base}/inner"), (
+        "control: the harness cannot see a framed password input, so the check above is void")
