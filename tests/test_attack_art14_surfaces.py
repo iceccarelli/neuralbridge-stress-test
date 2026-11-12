@@ -559,16 +559,15 @@ def test_greece_by_its_iso_code_is_accepted(api, key):
 
 # --- the plan that is sold vs the plan that can decide
 @needs_api
-@pytest.mark.xfail(strict=True, reason=(
-    "FINDING (not yet filed upstream; product 0dd2517): awareness, triage and filings are listed "
-    "for the Register plan (app/lib/routes.ts, docs/claims-registry.md) but the product now "
-    "refuses them to an account-level key (403 operator_required) and only an individual "
-    "'decider' operator may make them. POST /v1/operators is Cell-only (402 "
-    "plan_does_not_include_machine_verification), so a Register-only account has no way to "
-    "make the decisions its plan lists. Either operators must be available on Register or the "
-    "Register listing is wrong; the expectation here is that a plan's listed workflow is "
-    "reachable on that plan."))
 def test_a_register_only_account_can_reach_the_decisions_the_register_plan_lists(api):
+    """RESOLVED 2026-11-12 (was a strict xfail from product 0dd2517).
+
+    Awareness, triage and filings need an individual ``decider`` operator, and the plan that
+    lists those decisions must be able to create one. The product opened ``POST /v1/operators``
+    from the Register plan upward. The marker was retired only after the nightly workflow
+    reported XPASS(strict) and the gate was observed directly at product 2b41ddb: no key 401,
+    a free account 402 ``plan_does_not_include_register``, Register 201.
+    """
     account_key = api.make_account("register-only@example.invalid", "register")
     status, op = call(api.base, "POST", "/v1/operators", key=account_key,
                       body={"name": DECIDER, "role": "decider"})
@@ -584,3 +583,23 @@ def test_a_register_only_account_can_reach_the_decisions_the_register_plan_lists
         "track": "actively_exploited_vulnerability", "reasoning": "synthetic reasoning",
         "actor": ACTOR})
     assert status == 201, body
+
+
+@needs_api
+def test_the_decider_gate_that_opened_for_register_stays_closed_below_it(api):
+    """Negative control for the test above: opening operators to Register must not open them to
+    everyone. No key is 401 and an account on the free plan is 402 with a remedy; neither may
+    create a decider, and neither may reach a decision."""
+    free_key = api.make_account("free-only@example.invalid", "free")
+    body = {"name": DECIDER, "role": "decider"}
+    assert call(api.base, "POST", "/v1/operators", body=body)[0] == 401
+    status, refusal = call(api.base, "POST", "/v1/operators", key=free_key, body=body)
+    assert status == 402, refusal
+    detail = refusal.get("detail", refusal)
+    assert detail.get("error") == "plan_does_not_include_register", refusal
+    assert detail.get("remedy"), refusal
+    assert "api_key" not in json.dumps(refusal)
+    status, _ = call(api.base, "POST", f"/v1/cases/{case_id()}/awareness", key=free_key, body={
+        "established_at": "2026-02-01T08:00:00Z", "track": "actively_exploited_vulnerability",
+        "reasoning": "synthetic reasoning", "actor": ACTOR})
+    assert status == 402

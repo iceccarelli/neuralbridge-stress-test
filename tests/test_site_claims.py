@@ -375,12 +375,14 @@ def test_the_route_the_mcp_page_gives_each_tool_is_the_route_the_tool_really_cal
     assert wrong == {}
 
 
-#: FINDING (not yet filed upstream; product 0dd2517): the MCP page (app/connectors/mcp/page.tsx)
-#: and app/lib/routes.ts list these two tools/routes as Register tier, but the API answers 402
-#: ``plan_does_not_include_machine_verification`` to a Register account: it opens at Cell. The
-#: sweep below excludes exactly these pairs; the strict xfail after it proves they are still
-#: wrong, and goes red when the site or the entitlement is corrected.
-TIER_DRIFT = {("machinery_export", "register"), ("machinery_passport_check_ledger", "register")}
+#: RESOLVED 2026-11-12. From product 0dd2517 until then the MCP page (app/connectors/mcp/page.tsx)
+#: and app/lib/routes.ts listed machinery_export and machinery_passport_check_ledger as Register
+#: tier while the API answered 402 ``plan_does_not_include_machine_verification`` to a Register
+#: account. The product corrected the LISTING to Cell (the entitlement was not widened), and a
+#: former exclusion set that hid exactly those two pairs from the sweep below, together with its
+#: strict xfail, was removed once the nightly workflow reported XPASS(strict) and the live 402s
+#: and the site source were observed directly at product 2b41ddb. Both pairs are now swept like
+#: every other tool.
 
 
 def _tier_mismatches(api):
@@ -402,17 +404,22 @@ def _tier_mismatches(api):
 
 
 def test_the_tier_the_mcp_page_gives_each_tool_is_the_tier_that_unlocks_its_route(api):
-    wrong = _tier_mismatches(api)
-    assert {k: v for k, v in wrong.items() if k not in TIER_DRIFT} == {}
+    assert _tier_mismatches(api) == {}
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "FINDING (not yet filed upstream; product 0dd2517): the site lists machinery_export and "
-    "machinery_passport_check_ledger as Register tier; the API gives 402 "
-    "plan_does_not_include_machine_verification to a Register account. Fix the listing or the "
-    "entitlement, then delete TIER_DRIFT and this marker."))
-def test_the_two_machinery_tools_are_available_on_the_tier_the_site_lists(api):
-    assert not (set(_tier_mismatches(api)) & TIER_DRIFT)
+def test_the_two_tools_once_listed_at_register_are_listed_at_the_tier_that_opens_them(api):
+    """The two tools whose listing once overstated the plan are pinned by name: the site must list
+    them at ``cell``, a Register account must still get 402, and a Cell account must not."""
+    tools = {t["name"]: t["tier"] for t in _mcp_page_tools()}
+    assert tools["machinery_export"] == "cell"
+    assert tools["machinery_passport_check_ledger"] == "cell"
+    register = api.make_account("site-pin-register@example.invalid", "register")
+    cell = api.make_account("site-pin-cell@example.invalid", "cell")
+    for method, path in (("GET", "/v1/machinery/export?machine=probe%2Fmodel%231"),
+                         ("POST", "/v1/machinery/passport/check-ledger")):
+        body = {} if method == "POST" else None
+        assert call(api.base, method, path, key=register, body=body)[0] == 402, path
+        assert call(api.base, method, path, key=cell, body=body)[0] not in (401, 402), path
 
 
 def test_the_mcp_page_says_how_many_tools_it_has_and_the_count_is_computed_not_typed():

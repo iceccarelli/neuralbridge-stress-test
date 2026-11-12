@@ -120,16 +120,23 @@ def test_the_liveness_probe_answers_anonymously_and_says_nothing_else(api):
 ANONYMOUS_HEALTH_LEAKS = ("auth_mode", "ledger_records", "attestation_key")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "FINDING (not yet filed upstream; product 0dd2517; re-verifies red-team item 4): GET /healthz "
-    "answers without a key and includes auth_mode, the operator ledger's record count and "
-    "whether a signing key is configured. Liveness has its own probe (/livez, which says "
-    "nothing); the detail belongs behind the operator key. Remove this marker when an anonymous "
-    "caller gets none of these."))
 def test_the_anonymous_health_surface_discloses_no_configuration_or_journal_metadata(api):
+    """RESOLVED 2026-11-12 (was a strict xfail from product 0dd2517; re-verifies red-team item 4).
+
+    The product moved the detail (auth mode, the operator ledger's record count, whether a
+    signing key is configured) behind the operator key at ``/ops/health``. The marker was
+    retired only after the nightly workflow reported it XPASS(strict) and the live responses
+    were observed directly at product 2b41ddb.
+
+    Beyond the three field names that were once leaked, the body must carry no count and no
+    free-form text: a leak under a renamed key (an integer record count, a mode string) would
+    otherwise pass a name-based check.
+    """
     status, body = call(api.base, "GET", "/healthz")
     assert status == 200
     assert [k for k in ANONYMOUS_HEALTH_LEAKS if k in body] == []
+    assert body.get("status") in {"ok", "unavailable"}, body
+    assert {k: v for k, v in body.items() if k != "status" and not isinstance(v, bool)} == {}, body
 
 
 def test_unknown_routes_are_404_and_wrong_methods_are_405(api):

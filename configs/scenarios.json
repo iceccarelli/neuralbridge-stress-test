@@ -86,9 +86,10 @@
         "A pricing page is not evidence that a paid workflow works."
       ],
       "source_ids": [],
-      "open_findings": [
-        "healthz_anonymous_disclosure: GET /healthz without a key returns auth_mode, ledger_records and attestation_key state (tests/test_api_authorization.py, strict xfail)",
-        "mcp_tier_drift: machinery_export and machinery_passport_check_ledger are listed as Register tier but the API gives 402 to Register and opens them at Cell (tests/test_site_claims.py, strict xfail)"
+      "open_findings": [],
+      "resolved_findings": [
+        "RESOLVED 2026-11-12, retested at product 2b41ddb (main), local API on loopback, throwaway state. healthz_anonymous_disclosure (found at 0dd2517): anonymous GET /healthz now returns exactly status plus the booleans ledger_ok, accounts_ok, storage_ok; the detail is behind the operator key at /ops/health (anonymous 401, operator 200). Evidence: the nightly workflow reported XPASS(strict) (neuralbridge run 43147743213); the live response was observed directly; the test was strengthened so a leak under a renamed key (a count, a mode string) also fails, and a scratch mutant that leaks one turns it red (tests/test_api_authorization.py)",
+        "RESOLVED 2026-11-12, retested at product 2b41ddb. mcp_tier_drift (found at 0dd2517): the product corrected the LISTING, not the entitlement. app/lib/routes.ts and app/connectors/mcp/page.tsx now list machinery_export and machinery_passport_check_ledger at cell; a Register account still gets 402 plan_does_not_include_machine_verification and a Cell account passes the gate. The exclusion set that hid those two pairs from the sweep was removed so both are swept like every other tool, and a named pin was added; a mutant that widens the entitlement turns both red (tests/test_site_claims.py)"
       ]
     },
     {
@@ -103,8 +104,9 @@
         "Time without an offset is refused, never guessed."
       ],
       "source_ids": [],
-      "open_findings": [
-        "register_cannot_decide: awareness/triage/filings need a decider operator but POST /v1/operators is Cell-only, so a Register-only account cannot make the decisions its plan lists (tests/test_attack_art14_surfaces.py, strict xfail)"
+      "open_findings": [],
+      "resolved_findings": [
+        "RESOLVED 2026-11-12, retested at product 2b41ddb (main). register_cannot_decide (found at 0dd2517): POST /v1/operators is now available from the Register plan upward, so a Register-only account can create the named decider that awareness, triage and filings require. Observed: no key 401, free account 402 plan_does_not_include_register with a remedy, Register 201. A negative control was added so the gate cannot silently open to everyone, and a mutant that removes the Register gate turns it red (tests/test_attack_art14_surfaces.py)"
       ]
     },
     {
