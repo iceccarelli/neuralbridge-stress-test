@@ -125,10 +125,21 @@
     }
   ],
   "rebaselined": {
-    "date": "2026-11-10",
-    "product_head": "0dd2517340ccfc6b4b354d51cc48af708d8b2b4b",
+    "date": "2026-11-13",
+    "product_head": "70153ccb60f8f9e3915192ce7cf63b137d367f8a",
+    "product_ref": "branch claude/adoring-ptolemy-4x59ey of iceccarelli/neuralbridge (not main; nothing here is deployed)",
+    "result": "full suite, local, product API on loopback, site built from the committed source, Chromium: 1702 passed, 6 skipped, 3 failed, 0 XPASS. Browser tier 15 passed, intel real-data tier 54 passed (both obtained: they were 17 of the 23 skips at 2b41ddb)",
+    "skipped": "6: BLOCKED, the product refuses the hostile manifest outright at input (a defence working). These six therefore do NOT exercise report escaping: that property is UNCHECKED by this suite for a hostile actor field. A product-side audit on 2026-11-12 saw hostile HTML in organisation, site, manufacturer and model escaped in report.html; no test here reproduces that yet",
+    "failed": [
+      "test_live_site.py::test_the_deployed_file_is_the_file_in_the_source_tree_under_test for /llms.txt, /openapi.json and /.well-known/agent.json: EXPECTED DRIFT, not a product defect. The live neuralbridge.io serves the files from before this change set (the live llms.txt still carries an internal deployment note that the source no longer has). The comparison passes again when the founder deploys the site from this source; the test is not to be loosened"
+    ],
     "unreviewed": [
       "MCP agent-write tools csaf_import and sbom_import: generic checks only; abuse tests not written"
-    ]
+    ],
+    "previous": {
+      "date": "2026-11-10",
+      "product_head": "0dd2517340ccfc6b4b354d51cc48af708d8b2b4b",
+      "result": "1678 passed, 23 skipped, 3 strict xfails, 0 failed"
+    }
   }
 }
