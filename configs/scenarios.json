@@ -85,11 +85,7 @@
         "Pricing copy is the plan table the API serves; each stated number is the number enforced.",
         "A pricing page is not evidence that a paid workflow works."
       ],
-      "source_ids": [],
-      "open_findings": [
-        "healthz_anonymous_disclosure: GET /healthz without a key returns auth_mode, ledger_records and attestation_key state (tests/test_api_authorization.py, strict xfail)",
-        "mcp_tier_drift: machinery_export and machinery_passport_check_ledger are listed as Register tier but the API gives 402 to Register and opens them at Cell (tests/test_site_claims.py, strict xfail)"
-      ]
+      "source_ids": []
     },
     {
       "id": "NB-008",
@@ -102,10 +98,7 @@
         "A draft check records nothing.",
         "Time without an offset is refused, never guessed."
       ],
-      "source_ids": [],
-      "open_findings": [
-        "register_cannot_decide: awareness/triage/filings need a decider operator but POST /v1/operators is Cell-only, so a Register-only account cannot make the decisions its plan lists (tests/test_attack_art14_surfaces.py, strict xfail)"
-      ]
+      "source_ids": []
     },
     {
       "id": "NB-009",
@@ -121,10 +114,82 @@
     }
   ],
   "rebaselined": {
-    "date": "2026-11-10",
-    "product_head": "0dd2517340ccfc6b4b354d51cc48af708d8b2b4b",
+    "date": "2026-11-14",
+    "product_head": "a9efb754928ca725af1408e309a585040c51dd2b",
+    "stress_head": "06312796e380f2551596b1c99b5d57e648705cf9",
+    "full_suite": {
+      "passed": 1676,
+      "skipped": 27,
+      "failed": 0,
+      "duration_seconds": 1099.09,
+      "evidence_level": "isolated local product API/CLI test harness; hosted staging not run"
+    },
+    "real_source_suite": {
+      "passed": 54,
+      "failed": 0,
+      "duration_seconds": 39.58,
+      "test_file": "tests/test_attack_intel_cli.py",
+      "evidence_level": "current public CISA/NVD/FIRST observations fetched 2026-11-14"
+    },
+    "public_sources": {
+      "cisa_kev_entries": 1781,
+      "nvd_cve_records": 3,
+      "epss_scores": 3,
+      "fetch_failures": 0,
+      "payloads_committed": false,
+      "provenance_file": "data/provenance/sources.json"
+    },
+    "hosted_staging": "UNCHECKED",
     "unreviewed": [
       "MCP agent-write tools csaf_import and sbom_import: generic checks only; abuse tests not written"
     ]
+  },
+  "latest_validation": {
+    "run_at_utc": "2026-11-14T16:16:48.453881+00:00",
+    "product_sha": "a9efb754928ca725af1408e309a585040c51dd2b",
+    "stress_suite_sha": "06312796e380f2551596b1c99b5d57e648705cf9",
+    "full_suite": {
+      "command": "python -m pytest -q -rfEX --no-header",
+      "passed": 1676,
+      "skipped": 27,
+      "failed": 0,
+      "duration_seconds": 1099.09,
+      "skips_are_not_passes": true
+    },
+    "real_source_suite": {
+      "command": "python -m pytest -q tests/test_attack_intel_cli.py --no-cov",
+      "passed": 54,
+      "failed": 0,
+      "duration_seconds": 39.58
+    },
+    "source_refresh": {
+      "generated_at_utc": "2026-11-14T16:16:48.453881+00:00",
+      "cisa_kev": {
+        "entries": 1781,
+        "http_status": 200,
+        "sha256": "4028ec035856331a717d3305e87e45be37d400fc500da34a5464f05fc2773764"
+      },
+      "nvd": {
+        "records": 3,
+        "http_status": 200,
+        "cve_ids": [
+          "CVE-2025-12768",
+          "CVE-2026-12661",
+          "CVE-2026-9653"
+        ]
+      },
+      "first_epss": {
+        "scores": 3,
+        "http_status": 200,
+        "sha256": "db545c4d81cf2ffc97f20428d2d4d938902b052a87eb84fc9aced2929ac39b9a"
+      },
+      "fetch_failures": 0,
+      "raw_payloads_committed": false,
+      "kev_fixture_matches": 0,
+      "interpretation": "Absence from KEV is not proof that a CVE does not exist or that a product/device is unaffected."
+    },
+    "hosted_staging": "UNCHECKED",
+    "live_checkout_and_webhook": "UNCHECKED",
+    "real_machine_collection": "UNCHECKED"
   }
 }
