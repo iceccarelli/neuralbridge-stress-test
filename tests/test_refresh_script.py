@@ -1,5 +1,7 @@
 """Regression tests for the independent harness entry points."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 
