@@ -58,5 +58,6 @@
       "source_id": "first_epss",
       "url": "https://api.first.org/data/v1/epss?cve=CVE-2025-12768%2CCVE-2026-12661%2CCVE-2026-9653"
     }
-  ]
+  ],
+  "schema": "neuralbridge-stress.provenance/1"
 }
