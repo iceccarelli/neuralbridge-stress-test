@@ -375,12 +375,10 @@ def test_the_route_the_mcp_page_gives_each_tool_is_the_route_the_tool_really_cal
     assert wrong == {}
 
 
-#: FINDING (not yet filed upstream; product 0dd2517): the MCP page (app/connectors/mcp/page.tsx)
-#: and app/lib/routes.ts list these two tools/routes as Register tier, but the API answers 402
-#: ``plan_does_not_include_machine_verification`` to a Register account: it opens at Cell. The
-#: sweep below excludes exactly these pairs; the strict xfail after it proves they are still
-#: wrong, and goes red when the site or the entitlement is corrected.
-TIER_DRIFT = {("machinery_export", "register"), ("machinery_passport_check_ledger", "register")}
+#: The product now labels machine export and passport-ledger inspection as Cell,
+#: matching the Machine entitlement enforced by the API. The parity sweep below
+#: checks every MCP tool against real free/Register/Cell accounts.
+
 
 
 def _tier_mismatches(api):
@@ -403,16 +401,7 @@ def _tier_mismatches(api):
 
 def test_the_tier_the_mcp_page_gives_each_tool_is_the_tier_that_unlocks_its_route(api):
     wrong = _tier_mismatches(api)
-    assert {k: v for k, v in wrong.items() if k not in TIER_DRIFT} == {}
-
-
-@pytest.mark.xfail(strict=True, reason=(
-    "FINDING (not yet filed upstream; product 0dd2517): the site lists machinery_export and "
-    "machinery_passport_check_ledger as Register tier; the API gives 402 "
-    "plan_does_not_include_machine_verification to a Register account. Fix the listing or the "
-    "entitlement, then delete TIER_DRIFT and this marker."))
-def test_the_two_machinery_tools_are_available_on_the_tier_the_site_lists(api):
-    assert not (set(_tier_mismatches(api)) & TIER_DRIFT)
+    assert wrong == {}, wrong
 
 
 def test_the_mcp_page_says_how_many_tools_it_has_and_the_count_is_computed_not_typed():
