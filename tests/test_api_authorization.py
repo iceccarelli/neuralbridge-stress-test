@@ -120,12 +120,6 @@ def test_the_liveness_probe_answers_anonymously_and_says_nothing_else(api):
 ANONYMOUS_HEALTH_LEAKS = ("auth_mode", "ledger_records", "attestation_key")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "FINDING (not yet filed upstream; product 0dd2517; re-verifies red-team item 4): GET /healthz "
-    "answers without a key and includes auth_mode, the operator ledger's record count and "
-    "whether a signing key is configured. Liveness has its own probe (/livez, which says "
-    "nothing); the detail belongs behind the operator key. Remove this marker when an anonymous "
-    "caller gets none of these."))
 def test_the_anonymous_health_surface_discloses_no_configuration_or_journal_metadata(api):
     status, body = call(api.base, "GET", "/healthz")
     assert status == 200
