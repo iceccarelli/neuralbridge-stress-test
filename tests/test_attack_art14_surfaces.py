@@ -1,8 +1,8 @@
 """CRA Article 14 workflow, attacked through the real CLI and the real API.
 
 Evidence level: ``python -m assurance art14 ...`` (subprocess, real SQLite) and the product's real
-FastAPI app on loopback (throwaway Cell-tier account with a decider operator; see the
-Register-tier finding at the end), SYNTHETIC cases. Complements
+FastAPI app on loopback (throwaway Cell-tier account with a decider operator; a separate
+regression verifies that Register accounts can also bootstrap a decider), SYNTHETIC cases. Complements
 tests/test_art14_clocks.py (library level) with: the same clocks through both surfaces, instants
 given in other offsets and across daylight-saving transitions, filing boundaries, what a draft
 does and does not do, and Member State validation. Not hosted staging; not legal advice.
@@ -559,15 +559,6 @@ def test_greece_by_its_iso_code_is_accepted(api, key):
 
 # --- the plan that is sold vs the plan that can decide
 @needs_api
-@pytest.mark.xfail(strict=True, reason=(
-    "FINDING (not yet filed upstream; product 0dd2517): awareness, triage and filings are listed "
-    "for the Register plan (app/lib/routes.ts, docs/claims-registry.md) but the product now "
-    "refuses them to an account-level key (403 operator_required) and only an individual "
-    "'decider' operator may make them. POST /v1/operators is Cell-only (402 "
-    "plan_does_not_include_machine_verification), so a Register-only account has no way to "
-    "make the decisions its plan lists. Either operators must be available on Register or the "
-    "Register listing is wrong; the expectation here is that a plan's listed workflow is "
-    "reachable on that plan."))
 def test_a_register_only_account_can_reach_the_decisions_the_register_plan_lists(api):
     account_key = api.make_account("register-only@example.invalid", "register")
     status, op = call(api.base, "POST", "/v1/operators", key=account_key,
