@@ -7,6 +7,7 @@
 # It never touches any other product checkout, never resets, cleans or stashes, and never pushes.
 set -uo pipefail
 LAB="$(cd "$(dirname "$0")/.." && pwd)"
+mkdir -p "$LAB/data/derived"
 PRODUCT="${NEURALBRIDGE_PRODUCT:-$LAB/../neuralbridge-main}"
 URL="https://github.com/iceccarelli/neuralbridge.git"
 
@@ -31,7 +32,7 @@ if [ "${1:-}" != "--quick" ]; then
 fi
 
 cd "$LAB"
-LOG="$LAB/data/derived/last-run.log"; mkdir -p "$LAB/data/derived"
+LOG="$LAB/data/derived/last-run.log"
 python -m pytest -q -rs -rX -p no:cacheprovider > "$LOG" 2>&1
 CODE=$?
 echo "----- result (full log: data/derived/last-run.log) -----"
