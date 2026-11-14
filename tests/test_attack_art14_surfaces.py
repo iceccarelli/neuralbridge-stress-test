@@ -2,7 +2,8 @@
 
 Evidence level: ``python -m assurance art14 ...`` (subprocess, real SQLite) and the product's real
 FastAPI app on loopback (throwaway Cell-tier account with a decider operator; a separate
-regression verifies that Register accounts can also bootstrap a decider), SYNTHETIC cases. Complements
+regression verifies that Register accounts can also bootstrap a decider), SYNTHETIC cases.
+Complements
 tests/test_art14_clocks.py (library level) with: the same clocks through both surfaces, instants
 given in other offsets and across daylight-saving transitions, filing boundaries, what a draft
 does and does not do, and Member State validation. Not hosted staging; not legal advice.
